@@ -32,6 +32,18 @@ uint8_t number[20][8] = {
   {0x22,0x00,0x36,0x92,0x49,0x92,0x36,0x00},//num18
   {0x22,0x00,0x32,0x92,0x49,0x92,0x3e,0x00},//num19
 };
+uint8_t litnumber[10][4] = {
+  {0x00,0xf8,0x11,0xf8}, //litnum0
+  {0x00,0x90,0x1f,0x80}, //litnum1
+  {0x00,0xe8,0x15,0xb8}, //litnum2
+  {0x00,0xa8,0x15,0xf8}, //litnum3
+  {0x00,0x38,0x04,0xf8}, //litnum4
+  {0x00,0xb8,0x15,0xe8}, //litnum5
+  {0x00,0xf8,0x15,0xe8}, //litnum6
+  {0x00,0x08,0x10,0xf8}, //litnum7
+  {0x00,0xf8,0x15,0xf8}, //litnum8
+  {0x00,0xb8,0x15,0xf8}, //litnum9
+};
 void write_byte(uint8_t num) {
   for (int i = 0; i <= 7; i++) {
     if (num & 0x80) {
@@ -51,12 +63,25 @@ void write_num(uint8_t data) {
   for (int i = 0; i <= 7; i++) {
     int aa = number[data][i];
     for (int j = 0; j <= 7; j++) {
-    if (aa & 0x80) {
-      write_led(0, 0, 15);
-    }else{
-      write_led(0, 0, 0);
+      if (aa & 0x80) {
+        write_led(0, 0, 15);
+      } else {
+        write_led(0, 0, 0);
+      }
+      aa <<= 1;
     }
-    aa<<=1;
+  }
+}
+void write_litnum(uint8_t data) {
+  for (int i = 0; i <= 3; i++) {
+    int aa = litnumber[data][i];
+    for (int j = 0; j <= 7; j++) {
+      if (aa & 0x80) {
+        write_led(0, 0, 15);
+      } else {
+        write_led(0, 0, 0);
+      }
+      aa <<= 1;
     }
   }
 }
@@ -82,13 +107,17 @@ void loop() {
 
   timeClient.update();
   write_num(timeClient.getHours() / 10);
-write_num(timeClient.getHours() % 10);
-write_num(timeClient.getMinutes() / 10);
-write_num(timeClient.getMinutes() % 10);
-delay(500);
+  write_num(timeClient.getHours() % 10);
+  write_num(timeClient.getMinutes() / 10);
+  write_num(timeClient.getMinutes() % 10);
+  write_litnum(timeClient.getSeconds() / 10);
+  write_litnum(timeClient.getSeconds() % 10);
+  delay(500);
   write_num(timeClient.getHours() / 10);
-write_num(timeClient.getHours() % 10);
-write_num(timeClient.getMinutes() / 10 + 10);
-write_num(timeClient.getMinutes() % 10);
-delay(500);
+  write_num(timeClient.getHours() % 10);
+  write_num(timeClient.getMinutes() / 10 + 10);
+  write_num(timeClient.getMinutes() % 10);
+  write_litnum(timeClient.getSeconds() / 10);
+  write_litnum(timeClient.getSeconds() % 10);
+  delay(500);
 }
