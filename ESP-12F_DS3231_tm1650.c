@@ -5,6 +5,7 @@
 #define sda 4
 #define scl 5       //I2C接口
 #define led A0      //光敏电阻
+#define Ga  12
 int i = 0;          //超时检测
 const char *ssid     = "WiFi_Name";         //WiFi名称
 const char *password = "WiFi_Pass";   //WiFi密码
@@ -12,9 +13,10 @@ const char *password = "WiFi_Pass";   //WiFi密码
  *  数码管显示
  *  后续会加上水银开关，作为方向感应
  */
-uint8_t num[10] = {                    
+uint8_t num[2][10] = {                    
   //0   1     2     3     4     5     6     7     8     9
-  0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7f, 0x6f
+  {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7f, 0x6f},
+  {0x3F, 0x30, 0x5B, 0x79, 0x74, 0x6D, 0x6F, 0x38, 0x7F, 0x7D}
 };
 int ds_hour, ds_min, ds_sec;
 int minute1, minute2, hour1, hour2;
@@ -105,6 +107,7 @@ void draw_time( int addr, int timer) {
 void setup() {
   Wire.begin();
   Serial.begin(115200);
+  pinMode(Ga,INPUT);
   timeClient.begin();
   timeClient.update();
   Serial.println ( timeClient.getSeconds() );
@@ -121,9 +124,15 @@ void loop() {
   if (ds_hour == 1 && ds_sec == 12 )
     write_time();
   read_time();
-  draw_time(0x34, num[hour1]);
-  draw_time(0x35, num[hour2] ^ (ds_sec % 2 << 7));
-  draw_time(0x36, num[minute1] ^ (ds_sec % 2 << 7));
-  draw_time(0x37, num[minute2]);
+ if ( digitalRead(Ga)){
+  draw_time(0x34, num[0][hour1]);
+  draw_time(0x35, num[0][hour2] ^ (ds_sec % 2 << 7));
+  draw_time(0x36, num[0][minute1] ^ (ds_sec % 2 << 7));
+  draw_time(0x37, num[0][minute2]);
+}else{
+  draw_time(0x34, num[1][minute2]);
+  draw_time(0x35, num[1][minute1] ^ (ds_sec % 2 << 7));
+  draw_time(0x36, num[1][hour2] ^ (ds_sec % 2 << 7));
+  draw_time(0x37, num[1][hour1]);}
   delay(499);
 }
