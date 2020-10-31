@@ -7,8 +7,8 @@
 #define led A0      //光敏电阻
 #define Ga  12
 int i = 0;          //超时检测
-const char *ssid     = "WiFi_Name";         //WiFi名称
-const char *password = "WiFi_Pass";   //WiFi密码
+const char *ssid     = "WiFi_name";         //WiFi名称
+const char *password = "WiFi_pass";   //WiFi密码
 /*
  *  数码管显示
  *  后续会加上水银开关，作为方向感应
@@ -18,6 +18,7 @@ uint8_t num[2][10] = {
   {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F},
   {0x3F, 0x30, 0x5B, 0x79, 0x74, 0x6D, 0x6F, 0x38, 0x7F, 0x7D}
 };
+
 int ds_hour, ds_min, ds_sec;
 int minute1, minute2, hour1, hour2;
 WiFiUDP ntpUDP;
@@ -33,33 +34,40 @@ void write_time() {
     i++;
     delay ( 500 );
     Serial.print ( "." );
-    if (i > 120) {                    //60秒后如果还是连接不上，就判定为连接超时
+    if (i > 40) {                    //60秒后如果还是连接不上，就判定为连接超时      
+      Serial.println("");
       Serial.print("连接超时！请检查网络环境");
       break;
     }
-  }
+  }Serial.println("");
+  if (WiFi.status() == WL_CONNECTED){
+    Serial.println("已联网，准备更新时间！！！");
   timeClient.begin();
   timeClient.update();
   //秒，分，时的获取及写入；
   Wire.beginTransmission(0x68);
   Wire.write(0x00);
-  int Net_second = timeClient.getSeconds();                   //ss
-  int Second = (Net_second / 10 * 16) + (Net_second % 10);
-  Wire.write(Second);
+  int valll = timeClient.getSeconds();                   //ss
+  int dd = (valll / 10 * 16) + (valll % 10);
+  Wire.write(dd);
   Wire.endTransmission();
   Wire.beginTransmission(0x68);
   Wire.write(0x01);
-  int Net_minute = timeClient.getMinutes();                   //mm
-  int Minute = (Net_minute / 10 * 16) + (Net_minute % 10);
-  Wire.write(Minute);
+  int vallll = timeClient.getMinutes();                   //mm
+  int ddd = (vallll / 10 * 16) + (vallll % 10);
+  Wire.write(ddd);
   Wire.endTransmission();
   Wire.beginTransmission(0x68);
   Wire.write(0x02);
-  int Net_hour = timeClient.getHours();                   //hh
-  int Hour = (Net_hour / 10 * 16) + (Net_hour % 10);
-  Wire.write(Hour);
+  int vall = timeClient.getHours();                   //hh
+  int d = (vall / 10 * 16) + (vall % 10);
+  Wire.write(d);
   Wire.endTransmission();
-  Serial.println("时间更新完成！！！");
+  Serial.println("时间更新完成！！！");}
+  else
+  {
+    Serial.println("未联网，凑乎用吧。。。。。。");
+  }
   WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("无线终端和接入点的连接已中断");
@@ -85,14 +93,16 @@ void read_time() {
   hour2 = (ds_hour % 16 );
   minute1 = (ds_min / 16 );
   minute2 = (ds_min % 16);
+  //Serial.println((ds_sec / 16) * 10 + ds_sec % 16);
+  Serial.println(ds_sec);
 }
 /*
  * 显示时间；通过TM1650显示时间
  * 亮度控制还没想到合适的方案
  */
 void draw_time( int addr, int timer) {
-  //int light = (analogRead(led) / 25);
-  int light = 0x41;
+  int light = (((analogRead(led) / 128) <<4) | 0x01);
+  //int light = 0x41;
   Wire.beginTransmission(0x24);
   Wire.write(light);
   while (Wire.endTransmission() != 0) {
@@ -107,11 +117,7 @@ void draw_time( int addr, int timer) {
 void setup() {
   Wire.begin();
   Serial.begin(115200);
-  pinMode(Ga,INPUT);
-  timeClient.begin();
-  timeClient.update();
-  Serial.println ( timeClient.getSeconds() );
-  Serial.println ("Time Begin");
+ pinMode(Ga,INPUT_PULLUP);
   write_time();
 }
 /*
@@ -124,15 +130,17 @@ void loop() {
   if (ds_hour == 1 && ds_sec == 12 )
     write_time();
   read_time();
- if ( digitalRead(Ga)){
+   if ( !digitalRead(Ga)){
   draw_time(0x34, num[0][hour1]);
   draw_time(0x35, num[0][hour2] ^ (ds_sec % 2 << 7));
   draw_time(0x36, num[0][minute1] ^ (ds_sec % 2 << 7));
   draw_time(0x37, num[0][minute2]);
+  delay(499);
 }else{
   draw_time(0x34, num[1][minute2]);
   draw_time(0x35, num[1][minute1] ^ (ds_sec % 2 << 7));
   draw_time(0x36, num[1][hour2] ^ (ds_sec % 2 << 7));
   draw_time(0x37, num[1][hour1]);}
   delay(499);
+
 }
