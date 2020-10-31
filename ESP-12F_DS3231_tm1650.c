@@ -97,6 +97,43 @@ void read_time() {
   Serial.println(ds_sec);
 }
 /*
+ * Read the temp and humidity
+ */
+void read_temp()
+{
+ // _reset();
+  Wire.beginTransmission(0x40);
+  Wire.write(0xf3);
+  Wire.endTransmission();
+  delay(100);
+  Wire.requestFrom(0x40, 2);
+  uint8_t msb = Wire.read();
+  uint8_t lsb = Wire.read();
+  uint16_t value = msb << 8 | lsb;
+  float temp1 = value * (175.72 / 65536.0)- 46.85;
+  int temp2 = int(temp1 * 10 );
+  Serial.print(" The temp is :");
+  Serial.print(temp1);
+  Serial.print(";-------------------The Stant temp is :");
+  Serial.println(temp2);
+}
+void read_rh(){
+  Wire.beginTransmission(0x40);
+  Wire.write(0xf5);
+  Wire.endTransmission();
+  delay(40);
+  Wire.requestFrom(0x40, 2);
+  uint8_t msb = Wire.read();
+  uint8_t lsb = Wire.read();
+  uint16_t value = msb << 8 | lsb;
+  float rh1 = value * (125.0 / 65536.0) - 6.0;
+  int rh2 = int(rh1 * 10 );
+  Serial.print(" The humidity is :");
+  Serial.print(rh1);
+  Serial.print(";-------------------The Stant humidity is :");
+  Serial.println(rh2);
+}
+/*
  * 显示时间；通过TM1650显示时间
  * 亮度控制还没想到合适的方案
  */
@@ -142,5 +179,6 @@ void loop() {
   draw_time(0x36, num[1][hour2] ^ (ds_sec % 2 << 7));
   draw_time(0x37, num[1][hour1]);}
   delay(499);
-
+//read_temp();
+//read_rh();
 }
