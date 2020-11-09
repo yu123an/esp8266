@@ -1,0 +1,29 @@
+#include <Wire.h>
+#define sda 4
+#define scl 5 
+void setup() {
+   Wire.begin();
+  // put your setup code here, to run once:
+Serial.begin(115200);
+}
+void read_time() {
+  Wire.beginTransmission(0x68);
+  Wire.write(0x00);
+  Wire.endTransmission();
+  Wire.requestFrom(0x68, 3);
+ int ds_sec = Wire.read();
+  int ds_min = Wire.read();
+  int ds_hour = Wire.read();
+  int hour1 = (ds_hour / 16);
+  int hour2 = (ds_hour % 16 );
+  int minute1 = (ds_min / 16 );
+  int minute2 = (ds_min % 16);
+  Serial.println((ds_sec / 16) * 10 + ds_sec % 16);
+ // Serial.println(ds_sec);
+}
+void loop() {
+  // put your main code here, to run repeatedly:
+Serial.println("I am ok !!!");
+read_time();
+delay(2000);
+}
