@@ -17,7 +17,7 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ80
 int ds_hour, ds_min, ds_sec , sec;
 int minute1, minute2, hour1, hour2;
 int i = 0;
-int j = 1;
+long int j = 1;
 int dot = 0x44;
 int colorR;
 int colorG;
@@ -132,7 +132,7 @@ uint8_t fonts[][8] = {
   0x00, 0x02, 0x01, 0x02, 0x04, 0x02, 0x00, 0x00,// ~
   0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00,//black block// �
 };
-void change_time(){
+void change_time() {
   j++;
   read_time();
   //dot ^= 0x44;
@@ -140,20 +140,28 @@ void change_time(){
   for (int i = 0; i < 8; i++) {
     write_data(fonts[ds_hour / 16][i], 0, i);
     write_data(fonts[ds_hour % 16][i], 2, i);
-    write_data(fonts[ds_min / 16][i], 4, i);
-    if ((ds_sec / 16) * 10 + (ds_sec % 16) == 59){
-      write_data((fonts[ds_min % 16][i] << (j % 8))| (fonts[((ds_min % 16) + 1) % 10][i] >> (9 - (j % 8))), 6, i);
-    }else{
-    write_data(fonts[ds_min % 16][i], 6, i);}
-    // write_data((fonts[ds_sec % 16][i] << p) | (fonts[(ds_sec % 16) + 1][i] >> (8-p)) ,3,i);
-    // write_data(fonts[21][i], 4, i);
+    if ((ds_sec / 16) * 10 + (ds_sec % 16) == 59) {
+      if ((ds_min % 16) == 9) {
+        write_data((fonts[ds_min / 16][i] << (j % 8)) | (fonts[((ds_min / 16) + 1) % 10][i] >> (9 - (j % 8))), 4, i);
+      } else {
+        write_data(fonts[ds_min / 16][i], 4, i);
+      }
+    } else {
+      write_data(fonts[ds_min / 16][i], 4, i);
+    }
+    if ((ds_sec / 16) * 10 + (ds_sec % 16) == 59) {
+      write_data((fonts[ds_min % 16][i] << (j % 8)) | (fonts[((ds_min % 16) + 1) % 10][i] >> (9 - (j % 8))), 6, i);
+    } else {
+      write_data(fonts[ds_min % 16][i], 6, i);
+    }
   }
   for (int i = 0; i < 4; i++) {
-    if((ds_sec % 16) == 9){
-    write_data((litle[ds_sec / 16][i] << (j % 8)) | (litle[(ds_sec / 16) + 1][i] >> (9-(j % 8))), 8, i);
-   }else{
-    write_data(litle[ds_sec / 16][i], 8, i);}
-    write_data((litle[ds_sec % 16][i] << (j % 8)) | (litle[((ds_sec % 16) + 1) % 10][i] >> (9-(j % 8))) , 9, i);
+    if ((ds_sec % 16) == 9) {
+      write_data((litle[ds_sec / 16][i] << (j % 8)) | (litle[(ds_sec / 16) + 1][i] >> (9 - (j % 8))), 8, i);
+    } else {
+      write_data(litle[ds_sec / 16][i], 8, i);
+    }
+    write_data((litle[ds_sec % 16][i] << (j % 8)) | (litle[((ds_sec % 16) + 1) % 10][i] >> (9 - (j % 8))) , 9, i);
   }
   write_data(dot, 2, 7);
   pixels.show();
@@ -240,7 +248,7 @@ void setup() {
   pixels.begin();
   pixels.setBrightness(10);
   pixelShow();
-  tim.attach_ms(125,change_time);
+  tim.attach_ms(125, change_time);
 }
 void write_data(uint8_t a, int aa, int bb) {
   uint8_t b = a;
@@ -256,23 +264,23 @@ void write_data(uint8_t a, int aa, int bb) {
 
 void loop() {
   /*
-   * 
-   read_time();
-  dot ^= 0x44;
-  for (int i = 0; i < 8; i++) {
+
+    read_time();
+    dot ^= 0x44;
+    for (int i = 0; i < 8; i++) {
     write_data(fonts[ds_hour / 16][i], 0, i);
     write_data(fonts[ds_hour % 16][i], 2, i);
     write_data(fonts[ds_min / 16][i], 4, i);
     write_data(fonts[ds_min % 16][i], 6, i);
     // write_data((fonts[ds_sec % 16][i] << p) | (fonts[(ds_sec % 16) + 1][i] >> (8-p)) ,3,i);
     // write_data(fonts[21][i], 4, i);
-  }
-  for (int i = 0; i < 4; i++) {
+    }
+    for (int i = 0; i < 4; i++) {
     write_data(litle[ds_sec / 16][i], 8, i);
     write_data(litle[ds_sec % 16][i], 9, i);
-  }
-  write_data(dot, 2, 7);
-  pixels.show();
-  delay(499);
+    }
+    write_data(dot, 2, 7);
+    pixels.show();
+    delay(499);
   */
 }
