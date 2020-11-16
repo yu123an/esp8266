@@ -4,6 +4,7 @@
 #include <NTPClient.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
+#define led A0      //光敏电阻
 #define sda 4
 #define scl 5
 #define PIN            14
@@ -234,7 +235,7 @@ void read_time() {
 }
 void pixelShow()
 {
-  pixels.setBrightness(50);
+  pixels.setBrightness(255);
 
   for (int i = 0; i < NUMPIXELS; i++) {
     pixels.setPixelColor(i, colorR, colorG, colorB);
@@ -251,10 +252,11 @@ void setup() {
   tim.attach_ms(125, change_time);
 }
 void write_data(uint8_t a, int aa, int bb) {
+  int light = ( analogRead(led) / 128 ) + 2;
   uint8_t b = a;
   for (int m = 0; m < 8; m++) {
     if (b & 0x01) {
-      pixels.setPixelColor(aa * 32 + bb * 8 + m, 20, 0, 0);
+      pixels.setPixelColor(aa * 32 + bb * 8 + m, light, 0, 0);
     } else {
       pixels.setPixelColor(aa * 32 + bb * 8 + m, 0, 0, 0);
     }
