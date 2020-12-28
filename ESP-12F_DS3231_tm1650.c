@@ -100,7 +100,8 @@ void read_time() {
  // Serial.println(ds_sec);
 }
 /*
-   Read the temp and humidity
+   读取温度
+   DHT20温湿度传感器，寄存器地址：0xF3
 */
 void read_temp()
 {
@@ -120,6 +121,10 @@ void read_temp()
   Serial.print(";-------------------The Stant temp is :");
   Serial.println(temp2);
 }
+/*
+   读取湿度
+   DHT20温湿度传感器，寄存器地址：0xF5
+*/
 void read_rh() {
   Wire.beginTransmission(0x40);
   Wire.write(0xf5);
