@@ -1,25 +1,22 @@
-#include <Ticker.h>
 #include <Wire.h>
 #include <Adafruit_NeoPixel.h>
 #include <NTPClient.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-#define led A0      //光敏电阻
+#include <Ticker.h>
 #define sda 4
 #define scl 5
 #define PIN            14
 #define NUMPIXELS      320
-const char *ssid     = "WiFi_Name";         //WiFi名称
-const char *password = "WiFi_Pass";   //WiFi密码
+const char *ssid     = "、、";         //WiFi名称
+const char *password = "、、";   //WiFi密码
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
-Ticker tim;
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+Ticker tim;
 int ds_hour, ds_min, ds_sec , sec;
 int minute1, minute2, hour1, hour2;
 int i = 0;
-long int j = 1;
-int dot = 0x44;
 int colorR;
 int colorG;
 int colorB;
@@ -133,40 +130,6 @@ uint8_t fonts[][8] = {
   0x00, 0x02, 0x01, 0x02, 0x04, 0x02, 0x00, 0x00,// ~
   0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00,//black block// �
 };
-void change_time() {
-  j++;
-  read_time();
-  //dot ^= 0x44;
-  //for(int j =0;j<5;j++){
-  for (int i = 0; i < 8; i++) {
-    write_data(fonts[ds_hour / 16][i], 0, i);
-    write_data(fonts[ds_hour % 16][i], 2, i);
-    if ((ds_sec / 16) * 10 + (ds_sec % 16) == 59) {
-      if ((ds_min % 16) == 9) {
-        write_data((fonts[ds_min / 16][i] << (j % 8)) | (fonts[((ds_min / 16) + 1) % 10][i] >> (9 - (j % 8))), 4, i);
-      } else {
-        write_data(fonts[ds_min / 16][i], 4, i);
-      }
-    } else {
-      write_data(fonts[ds_min / 16][i], 4, i);
-    }
-    if ((ds_sec / 16) * 10 + (ds_sec % 16) == 59) {
-      write_data((fonts[ds_min % 16][i] << (j % 8)) | (fonts[((ds_min % 16) + 1) % 10][i] >> (9 - (j % 8))), 6, i);
-    } else {
-      write_data(fonts[ds_min % 16][i], 6, i);
-    }
-  }
-  for (int i = 0; i < 4; i++) {
-    if ((ds_sec % 16) == 9) {
-      write_data((litle[ds_sec / 16][i] << (j % 8)) | (litle[(ds_sec / 16) + 1][i] >> (9 - (j % 8))), 8, i);
-    } else {
-      write_data(litle[ds_sec / 16][i], 8, i);
-    }
-    write_data((litle[ds_sec % 16][i] << (j % 8)) | (litle[((ds_sec % 16) + 1) % 10][i] >> (9 - (j % 8))) , 9, i);
-  }
-  write_data(dot, 2, 7);
-  pixels.show();
-}
 void write_time() {
   WiFi.begin(ssid, password);         //联网
   while ( WiFi.status() != WL_CONNECTED ) {
@@ -230,12 +193,12 @@ void read_time() {
   minute1 = (ds_min / 16 );
   minute2 = (ds_min % 16);
   sec = ((ds_sec / 16) * 10 + ds_sec % 16);
-  Serial.println((ds_sec / 16) * 10 + ds_sec % 16);
+  //Serial.println((ds_sec / 16) * 10 + ds_sec % 16);
   // Serial.println(ds_sec);
 }
 void pixelShow()
 {
-  pixels.setBrightness(255);
+  pixels.setBrightness(50);
 
   for (int i = 0; i < NUMPIXELS; i++) {
     pixels.setPixelColor(i, colorR, colorG, colorB);
@@ -249,40 +212,34 @@ void setup() {
   pixels.begin();
   pixels.setBrightness(10);
   pixelShow();
-  tim.attach_ms(125, change_time);
+  tim.attach(18000,write_time);
 }
 void write_data(uint8_t a, int aa, int bb) {
-  int light = ( analogRead(led) / 128 ) + 2;
   uint8_t b = a;
   for (int m = 0; m < 8; m++) {
     if (b & 0x01) {
-      pixels.setPixelColor(aa * 32 + bb * 8 + m, light, 0, 0);
+      pixels.setPixelColor(aa * 32 + bb * 8 + m, 20, 0, 0);
     } else {
       pixels.setPixelColor(aa * 32 + bb * 8 + m, 0, 0, 0);
     }
     b >>= 1;
   }
 }
-
+int dot = 0x44;
 void loop() {
-  /*
-
-    read_time();
-    dot ^= 0x44;
-    for (int i = 0; i < 8; i++) {
+  read_time();
+  dot ^= 0x44;
+  for (int i = 0; i < 8; i++) {
     write_data(fonts[ds_hour / 16][i], 0, i);
     write_data(fonts[ds_hour % 16][i], 2, i);
     write_data(fonts[ds_min / 16][i], 4, i);
     write_data(fonts[ds_min % 16][i], 6, i);
-    // write_data((fonts[ds_sec % 16][i] << p) | (fonts[(ds_sec % 16) + 1][i] >> (8-p)) ,3,i);
-    // write_data(fonts[21][i], 4, i);
-    }
-    for (int i = 0; i < 4; i++) {
+  }
+  for (int i = 0; i < 4; i++) {
     write_data(litle[ds_sec / 16][i], 8, i);
     write_data(litle[ds_sec % 16][i], 9, i);
-    }
-    write_data(dot, 2, 7);
-    pixels.show();
-    delay(499);
-  */
+  }
+  write_data(dot, 2, 7);
+  pixels.show();
+  delay(999);
 }
