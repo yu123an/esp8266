@@ -1,4 +1,24 @@
+#include <ArduinoJson.h>
+#include <BearSSLHelpers.h>
+#include <CertStoreBearSSL.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiAP.h>
+#include <ESP8266WiFiGeneric.h>
+#include <ESP8266WiFiGratuitous.h>
+#include <ESP8266WiFiMulti.h>
+#include <ESP8266WiFiScan.h>
+#include <ESP8266WiFiSTA.h>
+#include <ESP8266WiFiType.h>
+#include <WiFiClient.h>
+#include <WiFiClientSecure.h>
+#include <WiFiClientSecureAxTLS.h>
+#include <WiFiClientSecureBearSSL.h>
+#include <WiFiServer.h>
+#include <WiFiServerSecure.h>
+#include <WiFiServerSecureAxTLS.h>
+#include <WiFiServerSecureBearSSL.h>
 #include <Wire.h>
+#include <ESP8266HTTPClient.h>
 #include <Adafruit_NeoPixel.h>
 #include <NTPClient.h>
 #include <ESP8266WiFi.h>
@@ -8,8 +28,17 @@
 #define scl 5
 #define PIN            14
 #define NUMPIXELS      320
-const char *ssid     = "、、";         //WiFi名称
-const char *password = "、、";   //WiFi密码
+const char *ssid     = "WiFi_Name";         //WiFi名称
+const char *password = "WiFi_Pass";   //WiFi密码
+String serverName = "http://Your_Station.xyz/WebStation/tft.php";    //服务器地址
+StaticJsonDocument<200> doc;
+const char* wea;
+int class_number;
+double win_speed;
+double temp2;
+double hum;
+double rain;
+double pm;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
@@ -31,6 +60,19 @@ uint8_t litle[][4] = {
   0x00, 0x08, 0x08, 0xF8,
   0x00, 0xF8, 0xA8, 0xF8,
   0x00, 0xB8, 0xA8, 0xF8,
+};
+uint8_t Weather[][8] = {
+  0X00, 0X00, 0XC0, 0XFF, 0XCA, 0X0A, 0X00, 0X00, //temp  0
+  0X00, 0X42, 0X18, 0X3C, 0X3C, 0X18, 0X42, 0X00, //sun   1
+  0X00, 0X00, 0XFF, 0X1F, 0X0E, 0X04, 0X00, 0X00, //wind  2
+  0X70, 0X8C, 0X82, 0X8C, 0X70, 0X06, 0X09, 0X06, //rain  3
+  0X00, 0X2A, 0X6B, 0X1C, 0X77, 0X1C, 0X6B, 0X2A, //snow  4
+  0XF3, 0X3F, 0X0F, 0X03, 0XC0, 0XF0, 0XFC, 0XCF, //sunder  5
+  0X20, 0X30, 0X28, 0X24, 0X22, 0X22, 0X2C, 0X30, //cloud   6
+  0X22, 0X35, 0X2A, 0X24, 0X22, 0X22, 0X2C, 0X30, //cloud&sun   7
+  0XA0, 0X70, 0X28, 0XA4, 0X62, 0X22, 0XAC, 0X70, //cloud&rain  8
+  0X00, 0X00, 0X7C, 0X08, 0X30, 0X08, 0X7C, 0X00, //class_money 9
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,//black block// 10
 };
 uint8_t fonts[][8] = {
   0x00, 0x3E, 0x51, 0x49, 0x45, 0x3E, 0x00, 0x00,// 0
@@ -130,6 +172,76 @@ uint8_t fonts[][8] = {
   0x00, 0x02, 0x01, 0x02, 0x04, 0x02, 0x00, 0x00,// ~
   0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00,//black block// �
 };
+void pixelShow()
+{
+  pixels.setBrightness(50);
+
+  for (int i = 0; i < NUMPIXELS; i++) {
+    pixels.setPixelColor(i, colorR, colorG, colorB);
+  }
+  pixels.show();
+}
+void setup() {
+  Wire.begin();
+  Serial.begin(115200);
+  write_time();
+  pixels.begin();
+  pixels.setBrightness(10);
+  pixelShow();
+  tim.attach(600, write_time);
+}
+void write_data(uint8_t a, int aa, int bb) {
+  uint8_t b = a;
+  for (int m = 0; m < 8; m++) {
+    if (b & 0x01) {
+      pixels.setPixelColor(aa * 32 + bb * 8 + m, 0, 10, 10);
+    } else {
+      pixels.setPixelColor(aa * 32 + bb * 8 + m, 0, 0, 0);
+    }
+    b >>= 1;
+  }
+}
+int dot = 0x44;
+void loop() {
+  read_time();
+  dot ^= 0x44;
+  for (int i = 0; i < 8; i++) {
+    write_data(fonts[ds_hour / 16][i], 0, i);
+    write_data(fonts[ds_hour % 16][i], 2, i);
+    write_data(fonts[ds_min / 16][i], 4, i);
+    write_data(fonts[ds_min % 16][i], 6, i);
+  }
+  for (int i = 0; i < 4; i++) {
+    write_data(litle[ds_sec / 16][i], 8, i);
+    write_data(litle[ds_sec % 16][i], 9, i);
+  }
+  write_data(dot, 2, 7);
+  pixels.show();
+  if (ds_sec % 16 == 2){
+    draw_msg();
+    //delay(3000);
+  }
+  delay(999);
+}
+void Get_msg() {
+  HTTPClient http;
+  http.begin(serverName);
+  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  String post_data = "name=aaa";
+  http.POST(post_data);
+  String load = http.getString();
+  int len = load.length() + 1;
+  char json[len] ;
+  load.toCharArray(json, len);
+  deserializeJson(doc, json);
+  wea = doc["weather"]["wea"];
+  class_number = doc["num"];
+  win_speed = doc["weather"]["win_speed"];
+  temp2 = doc["weather"]["temp"];
+  hum = doc["weather"]["hum"];
+  rain = doc["weather"]["rain"];
+  pm = doc["weather"]["pm"];
+}
 void write_time() {
   WiFi.begin(ssid, password);         //联网
   while ( WiFi.status() != WL_CONNECTED ) {
@@ -147,6 +259,8 @@ void write_time() {
     timeClient.begin();
     timeClient.update();
     //秒，分，时的获取及写入；
+    int vall = timeClient.getHours();                   //hh
+    if (vall != 8){
     Wire.beginTransmission(0x68);
     Wire.write(0x00);
     int valll = timeClient.getSeconds();                   //ss
@@ -165,7 +279,11 @@ void write_time() {
     int d = (vall / 10 * 16) + (vall % 10);
     Wire.write(d);
     Wire.endTransmission();
-    Serial.println("时间更新完成！！！");
+    Serial.println("时间更新完成！！！");}
+    else{
+      Serial.println("更新时间出错？？？");
+    }
+    Get_msg();
   }
   else
   {
@@ -193,53 +311,51 @@ void read_time() {
   minute1 = (ds_min / 16 );
   minute2 = (ds_min % 16);
   sec = ((ds_sec / 16) * 10 + ds_sec % 16);
-  //Serial.println((ds_sec / 16) * 10 + ds_sec % 16);
-  // Serial.println(ds_sec);
+  Serial.println((ds_sec / 16) * 10 + ds_sec % 16);
+  Serial.println(ds_sec);
 }
-void pixelShow()
-{
-  pixels.setBrightness(50);
-
-  for (int i = 0; i < NUMPIXELS; i++) {
-    pixels.setPixelColor(i, colorR, colorG, colorB);
-  }
-  pixels.show();
-}
-void setup() {
-  Wire.begin();
-  Serial.begin(115200);
-  write_time();
-  pixels.begin();
-  pixels.setBrightness(10);
-  pixelShow();
-  tim.attach(18000,write_time);
-}
-void write_data(uint8_t a, int aa, int bb) {
-  uint8_t b = a;
-  for (int m = 0; m < 8; m++) {
-    if (b & 0x01) {
-      pixels.setPixelColor(aa * 32 + bb * 8 + m, 20, 0, 0);
-    } else {
-      pixels.setPixelColor(aa * 32 + bb * 8 + m, 0, 0, 0);
-    }
-    b >>= 1;
-  }
-}
-int dot = 0x44;
-void loop() {
-  read_time();
-  dot ^= 0x44;
-  for (int i = 0; i < 8; i++) {
+void draw_msg() {
+  /*
+    const char* wea;
+    int class_number;//
+    double win_speed;
+    double temp2;//
+    double hum;
+    double rain;
+    double pm;
+  */
+  int win_all = win_speed * 10;
+  int temp2_all = temp2 * 10;
+  int hum_all = hum * 10;
+  int rain_all = rain * 10;
+  int pm_all = pm * 10;
+  /*
+   for (int i = 0; i < 8; i++) {
     write_data(fonts[ds_hour / 16][i], 0, i);
     write_data(fonts[ds_hour % 16][i], 2, i);
     write_data(fonts[ds_min / 16][i], 4, i);
     write_data(fonts[ds_min % 16][i], 6, i);
   }
-  for (int i = 0; i < 4; i++) {
-    write_data(litle[ds_sec / 16][i], 8, i);
-    write_data(litle[ds_sec % 16][i], 9, i);
-  }
-  write_data(dot, 2, 7);
-  pixels.show();
-  delay(999);
+   */
+   //draw temp
+   for (int i = 0; i < 8; i++) {
+    write_data(Weather[0][i],0,i);
+    write_data(Weather[10][i],2,i);
+    write_data(fonts[temp2_all / 100][i], 4, i);
+    write_data(fonts[temp2_all % 100 /10][i], 6, i);
+    write_data(fonts[temp2_all % 10][i], 8, i);
+   }
+   write_data(0x40, 6, 7);
+   pixels.show();
+   delay(2000);
+   //draw class_money
+   for (int i = 0; i < 8; i++) {
+    write_data(Weather[9][i],0,i);
+    write_data(Weather[10][i],2,i);
+    write_data(fonts[class_number / 100][i], 4, i);
+    write_data(fonts[class_number % 100 /10][i], 6, i);
+    write_data(fonts[class_number % 10][i], 8, i);
+   }
+   pixels.show();
+   delay(2000);
 }
