@@ -28,14 +28,15 @@
 #define scl 5
 #define PIN            14
 #define NUMPIXELS      320
-const char *ssid     = "WiFi_Name";         //WiFi名称
-const char *password = "WiFi_Pass";   //WiFi密码
+const char *ssid     = "WiFi";         //WiFi名称
+const char *password = "Pass";   //WiFi密码
 String serverName = "http://Your_Station.xyz/WebStation/tft.php";    //服务器地址
 StaticJsonDocument<200> doc;
 const char* wea;
 int class_number;
 double win_speed;
 double temp2;
+int temp22;
 double hum;
 double rain;
 double pm;
@@ -73,6 +74,7 @@ uint8_t Weather[][8] = {
   0XA0, 0X70, 0X28, 0XA4, 0X62, 0X22, 0XAC, 0X70, //cloud&rain  8
   0X00, 0X00, 0X7C, 0X08, 0X30, 0X08, 0X7C, 0X00, //class_money 9
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,//black block// 10
+  0x00, 0x20, 0x10, 0x08, 0x04, 0x02, 0x00, 0x00,// /11
 };
 uint8_t fonts[][8] = {
   0x00, 0x3E, 0x51, 0x49, 0x45, 0x3E, 0x00, 0x00,// 0
@@ -315,37 +317,20 @@ void read_time() {
   Serial.println(ds_sec);
 }
 void draw_msg() {
-  /*
-    const char* wea;
-    int class_number;//
-    double win_speed;
-    double temp2;//
-    double hum;
-    double rain;
-    double pm;
-  */
+  read_temp();
   int win_all = win_speed * 10;
   int temp2_all = temp2 * 10;
   int hum_all = hum * 10;
   int rain_all = rain * 10;
   int pm_all = pm * 10;
-  /*
-   for (int i = 0; i < 8; i++) {
-    write_data(fonts[ds_hour / 16][i], 0, i);
-    write_data(fonts[ds_hour % 16][i], 2, i);
-    write_data(fonts[ds_min / 16][i], 4, i);
-    write_data(fonts[ds_min % 16][i], 6, i);
-  }
-   */
    //draw temp
    for (int i = 0; i < 8; i++) {
-    write_data(Weather[0][i],0,i);
-    write_data(Weather[10][i],2,i);
-    write_data(fonts[temp2_all / 100][i], 4, i);
-    write_data(fonts[temp2_all % 100 /10][i], 6, i);
-    write_data(fonts[temp2_all % 10][i], 8, i);
+    write_data(Weather[0][i],4,i);
+    write_data(fonts[temp2_all / 100][i], 0, i);
+    write_data(fonts[temp2_all % 100 /10][i], 2, i);
+    write_data(fonts[temp22 / 100][i], 6, i);
+    write_data(fonts[temp22 % 100 /10][i], 8, i);
    }
-   write_data(0x40, 6, 7);
    pixels.show();
    delay(2000);
    //draw class_money
@@ -358,4 +343,38 @@ void draw_msg() {
    }
    pixels.show();
    delay(2000);
+}
+void read_temp()
+{
+  // _reset();
+  Wire.beginTransmission(0x40);
+  Wire.write(0xf3);
+  Wire.endTransmission();
+  delay(100);
+  Wire.requestFrom(0x40, 2);
+  uint8_t msb = Wire.read();
+  uint8_t lsb = Wire.read();
+  uint16_t value = msb << 8 | lsb;
+  float temp1 = value * (175.72 / 65536.0) - 46.85;
+   temp22 = int(temp1 * 10 );
+  Serial.print(" The temp is :");
+  Serial.print(temp1);
+  Serial.print(";-------------------The Stant temp is :");
+  Serial.println(temp22);
+}
+void read_rh() {
+  Wire.beginTransmission(0x40);
+  Wire.write(0xf5);
+  Wire.endTransmission();
+  delay(40);
+  Wire.requestFrom(0x40, 2);
+  uint8_t msb = Wire.read();
+  uint8_t lsb = Wire.read();
+  uint16_t value = msb << 8 | lsb;
+  float rh1 = value * (125.0 / 65536.0) - 6.0;
+  int rh2 = int(rh1 * 10 );
+  Serial.print(" The humidity is :");
+  Serial.print(rh1);
+  Serial.print(";-------------------The Stant humidity is :");
+  Serial.println(rh2);
 }
