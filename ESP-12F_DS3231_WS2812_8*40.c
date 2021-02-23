@@ -30,7 +30,7 @@
 #define NUMPIXELS      320
 const char *ssid     = "WiFi";         //WiFi名称
 const char *password = "Pass";   //WiFi密码
-String serverName = "http://Your_Station.xyz/WebStation/tft.php";    //服务器地址
+String serverName = "http://Station/WebStation/tft.php";    //服务器地址
 StaticJsonDocument<200> doc;
 const char* wea;
 int class_number;
@@ -40,6 +40,7 @@ int temp22;
 double hum;
 double rain;
 double pm;
+
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
@@ -61,6 +62,11 @@ uint8_t litle[][4] = {
   0x00, 0x08, 0x08, 0xF8,
   0x00, 0xF8, 0xA8, 0xF8,
   0x00, 0xB8, 0xA8, 0xF8,
+};
+uint8_t icons[][8] = {
+  0x60, 0x9F, 0x81, 0x9F, 0x60, 0x0E, 0x0A, 0x01, //未命名文件0
+  0x60, 0xFF, 0xF9, 0xFF, 0x60, 0x0E, 0x0A, 0x01, //未命名文件0
+  0x60, 0x9F, 0x81, 0x9F, 0x60, 0x0E, 0x0A, 0x01, //未命名文件0
 };
 uint8_t Weather[][8] = {
   0X00, 0X00, 0XC0, 0XFF, 0XCA, 0X0A, 0X00, 0X00, //temp  0
@@ -184,6 +190,7 @@ void pixelShow()
   pixels.show();
 }
 void setup() {
+  //wifi.autoConnect("Clock","23456789");
   Wire.begin();
   Serial.begin(115200);
   write_time();
@@ -203,8 +210,22 @@ void write_data(uint8_t a, int aa, int bb) {
     b >>= 1;
   }
 }
+void write_icon(int x, int number) {
+  uint8_t b[3];
+  for (int m = 0; m < 8; m++) {
+    for (int i = 0; i < 3; i++) {
+      b[i] = icons[number * 3 + i][m];
+    }
+    for (int j = 0; j < 8; j++) {
+      pixels.setPixelColor(8 * x + 8 * m + j, (b[0] & 0x01) * 10, (b[1] & 0x01) * 10, (b[2] & 0x01) * 10);
+      for (int i = 0; i < 3; i++) {
+        b[i] >>= 1;
+      }
+    }
+  }
+}
 int dot = 0x44;
-void loop() {
+  void loop() {
   read_time();
   dot ^= 0x44;
   for (int i = 0; i < 8; i++) {
@@ -219,12 +240,13 @@ void loop() {
   }
   write_data(dot, 2, 7);
   pixels.show();
-  if (ds_sec % 16 == 2){
+  if (((ds_sec / 16) * 10 + ds_sec % 16) == 32) {
     draw_msg();
     //delay(3000);
   }
   delay(999);
-}
+  }
+
 void Get_msg() {
   HTTPClient http;
   http.begin(serverName);
@@ -262,27 +284,28 @@ void write_time() {
     timeClient.update();
     //秒，分，时的获取及写入；
     int vall = timeClient.getHours();                   //hh
-    if (vall != 8){
-    Wire.beginTransmission(0x68);
-    Wire.write(0x00);
-    int valll = timeClient.getSeconds();                   //ss
-    int dd = (valll / 10 * 16) + (valll % 10);
-    Wire.write(dd);
-    Wire.endTransmission();
-    Wire.beginTransmission(0x68);
-    Wire.write(0x01);
-    int vallll = timeClient.getMinutes();                   //mm
-    int ddd = (vallll / 10 * 16) + (vallll % 10);
-    Wire.write(ddd);
-    Wire.endTransmission();
-    Wire.beginTransmission(0x68);
-    Wire.write(0x02);
-    int vall = timeClient.getHours();                   //hh
-    int d = (vall / 10 * 16) + (vall % 10);
-    Wire.write(d);
-    Wire.endTransmission();
-    Serial.println("时间更新完成！！！");}
-    else{
+    if (vall != 8) {
+      Wire.beginTransmission(0x68);
+      Wire.write(0x00);
+      int valll = timeClient.getSeconds();                   //ss
+      int dd = (valll / 10 * 16) + (valll % 10);
+      Wire.write(dd);
+      Wire.endTransmission();
+      Wire.beginTransmission(0x68);
+      Wire.write(0x01);
+      int vallll = timeClient.getMinutes();                   //mm
+      int ddd = (vallll / 10 * 16) + (vallll % 10);
+      Wire.write(ddd);
+      Wire.endTransmission();
+      Wire.beginTransmission(0x68);
+      Wire.write(0x02);
+      int vall = timeClient.getHours();                   //hh
+      int d = (vall / 10 * 16) + (vall % 10);
+      Wire.write(d);
+      Wire.endTransmission();
+      Serial.println("时间更新完成！！！");
+    }
+    else {
       Serial.println("更新时间出错？？？");
     }
     Get_msg();
@@ -323,26 +346,27 @@ void draw_msg() {
   int hum_all = hum * 10;
   int rain_all = rain * 10;
   int pm_all = pm * 10;
-   //draw temp
-   for (int i = 0; i < 8; i++) {
-    write_data(Weather[0][i],4,i);
+  //draw temp
+  for (int i = 0; i < 8; i++) {
+    //write_data(Weather[0][i], 4, i);
+    write_icon(16,0);
     write_data(fonts[temp2_all / 100][i], 0, i);
-    write_data(fonts[temp2_all % 100 /10][i], 2, i);
+    write_data(fonts[temp2_all % 100 / 10][i], 2, i);
     write_data(fonts[temp22 / 100][i], 6, i);
-    write_data(fonts[temp22 % 100 /10][i], 8, i);
-   }
-   pixels.show();
-   delay(2000);
-   //draw class_money
-   for (int i = 0; i < 8; i++) {
-    write_data(Weather[9][i],0,i);
-    write_data(Weather[10][i],2,i);
+    write_data(fonts[temp22 % 100 / 10][i], 8, i);
+  }
+  pixels.show();
+  delay(2000);
+  //draw class_money
+  for (int i = 0; i < 8; i++) {
+    write_data(Weather[9][i], 0, i);
+    write_data(Weather[10][i], 2, i);
     write_data(fonts[class_number / 100][i], 4, i);
-    write_data(fonts[class_number % 100 /10][i], 6, i);
+    write_data(fonts[class_number % 100 / 10][i], 6, i);
     write_data(fonts[class_number % 10][i], 8, i);
-   }
-   pixels.show();
-   delay(2000);
+  }
+  pixels.show();
+  delay(2000);
 }
 void read_temp()
 {
@@ -356,7 +380,7 @@ void read_temp()
   uint8_t lsb = Wire.read();
   uint16_t value = msb << 8 | lsb;
   float temp1 = value * (175.72 / 65536.0) - 46.85;
-   temp22 = int(temp1 * 10 );
+  temp22 = int(temp1 * 10 );
   Serial.print(" The temp is :");
   Serial.print(temp1);
   Serial.print(";-------------------The Stant temp is :");
