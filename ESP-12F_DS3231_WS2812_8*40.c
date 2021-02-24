@@ -29,7 +29,7 @@
 #define PIN            14
 #define NUMPIXELS      320
 const char *ssid     = "WiFi";         //WiFi名称
-const char *password = "PaWd";   //WiFi密码
+const char *password = "Pass";   //WiFi密码
 String serverName = "http://Station/WebStation/tft.php";    //服务器地址
 StaticJsonDocument<200> doc;
 const char* wea;
@@ -73,20 +73,6 @@ uint8_t icons[][8] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //block   //03
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //block
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //block
-};
-uint8_t Weather[][8] = {
-  0X00, 0X00, 0XC0, 0XFF, 0XCA, 0X0A, 0X00, 0X00, //temp  0
-  0X00, 0X42, 0X18, 0X3C, 0X3C, 0X18, 0X42, 0X00, //sun   1
-  0X00, 0X00, 0XFF, 0X1F, 0X0E, 0X04, 0X00, 0X00, //wind  2
-  0X70, 0X8C, 0X82, 0X8C, 0X70, 0X06, 0X09, 0X06, //rain  3
-  0X00, 0X2A, 0X6B, 0X1C, 0X77, 0X1C, 0X6B, 0X2A, //snow  4
-  0XF3, 0X3F, 0X0F, 0X03, 0XC0, 0XF0, 0XFC, 0XCF, //sunder  5
-  0X20, 0X30, 0X28, 0X24, 0X22, 0X22, 0X2C, 0X30, //cloud   6
-  0X22, 0X35, 0X2A, 0X24, 0X22, 0X22, 0X2C, 0X30, //cloud&sun   7
-  0XA0, 0X70, 0X28, 0XA4, 0X62, 0X22, 0XAC, 0X70, //cloud&rain  8
-  0X00, 0X00, 0X7C, 0X08, 0X30, 0X08, 0X7C, 0X00, //class_money 9
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,//black block// 10
-  0x00, 0x20, 0x10, 0x08, 0x04, 0x02, 0x00, 0x00,// /11
 };
 uint8_t fonts[][8] = {
   0x00, 0x3E, 0x51, 0x49, 0x45, 0x3E, 0x00, 0x00,// 0
@@ -165,8 +151,7 @@ void loop() {
   pixels.setPixelColor(15 * 8 + 5, 0, (ds_sec % 2) * 10, 0);
   pixels.show();
   if (((ds_sec / 16) * 10 + ds_sec % 16) == 32) {
-    draw_msg();
-    //delay(3000);
+    msg_animo();
   }
   delay(999);
 }
@@ -263,29 +248,44 @@ void read_time() {
   Serial.println((ds_sec / 16) * 10 + ds_sec % 16);
   Serial.println(ds_sec);
 }
-void draw_msg() {
+void msg_animo() {
   read_temp();
   int win_all = win_speed * 10;
   int temp2_all = temp2 * 10;
   int hum_all = hum * 10;
   int rain_all = rain * 10;
   int pm_all = pm * 10;
-  //draw temp
-  write_icon(16, 0);
-  write_data(0, temp2_all / 100);
-  write_data(8, temp2_all % 100 / 10);
-  write_data(24, temp22 / 100);
-  write_data(32, temp22 % 100 / 10);
-  pixels.show();
-  delay(4000);
-  //draw class_money
-  write_icon(0, 1);
-  write_icon(8, 2);
-  write_data(16, class_number / 100);
-  write_data(24, class_number % 100 / 10);
-  write_data(32, class_number % 10);
-  pixels.show();
-  delay(4000);
+  for (int x = 0; x > -97 ; x--) {
+    read_time();
+    //draw time
+    write_data(x, ds_hour / 16);
+    write_data(x + 8, ds_hour % 16);
+    write_data(x + 16, ds_min / 16);
+    write_data(x + 24, ds_min % 16);
+    write_data_lit(x + 32, ds_sec / 16);
+    write_data_lit(x + 36, ds_sec % 16);
+    pixels.setPixelColor((x + 15) * 8 + 2, 0, (ds_sec % 2) * 10, 0);
+    pixels.setPixelColor((x + 15) * 8 + 5, 0, (ds_sec % 2) * 10, 0);
+    //draw msg
+    write_icon(x + 40, 0);
+    write_data(x + 48, temp2_all / 100);
+    write_data(x + 56, temp2_all % 100 / 10);
+    write_icon(x + 64, 1);
+    write_data(x + 72, class_number / 100);
+    write_data(x + 80, class_number % 100 / 10);
+    write_data(x + 88, class_number % 10);
+    //draw time
+    write_data(x + 96, ds_hour / 16);
+    write_data(x + 8 + 96, ds_hour % 16);
+    write_data(x + 16 + 96, ds_min / 16);
+    write_data(x + 24 + 96, ds_min % 16);
+    write_data_lit(x + 32 + 96, ds_sec / 16);
+    write_data_lit(x + 36 + 96, ds_sec % 16);
+    pixels.setPixelColor((x + 15 + 96) * 8 + 2, 0, (ds_sec % 2) * 10, 0);
+    pixels.setPixelColor((x + 15 + 96) * 8 + 5, 0, (ds_sec % 2) * 10, 0);
+    pixels.show();
+    delay(80);
+  }
 }
 void read_temp()
 {
