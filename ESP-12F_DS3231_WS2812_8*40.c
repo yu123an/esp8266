@@ -24,14 +24,17 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <Ticker.h>
+#include "msg.h"
+#include "font_icon.h"
 #define sda 4
 #define scl 5
 #define PIN            14
 #define NUMPIXELS      320
-const char *ssid     = "WiFi";         //WiFi名称
-const char *password = "Pass";   //WiFi密码
-String serverName = "http://Station/WebStation/tft.php";    //服务器地址
+const char *ssid     = "WiFi_Name";         //WiFi名称
+const char *password = "WiFi_Pass";   //WiFi密码
+String serverName = "http://Your.Station.com/WebStation/tft.php";    //服务器地址
 StaticJsonDocument<200> doc;
+int weath = 1;
 const char* wea;
 int class_number;
 double win_speed;
@@ -40,7 +43,6 @@ int temp22;
 double hum;
 double rain;
 double pm;
-
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
@@ -51,44 +53,9 @@ int i = 0;
 int colorR;
 int colorG;
 int colorB;
-uint8_t litle[][4] = {
-  0x00, 0xF8, 0x88, 0xF8,
-  0x00, 0x90, 0xF8, 0x80,
-  0x00, 0xE8, 0xA8, 0xB8,
-  0x00, 0xA8, 0xA8, 0xF8,
-  0x00, 0x38, 0x20, 0xF8,
-  0x00, 0xB8, 0xA8, 0xE8,
-  0x00, 0xF8, 0xA8, 0xE8,
-  0x00, 0x08, 0x08, 0xF8,
-  0x00, 0xF8, 0xA8, 0xF8,
-  0x00, 0xB8, 0xA8, 0xF8,
-};
-uint8_t icons[][8] = {
-  0x60, 0x9F, 0x81, 0x9F, 0x60, 0x0E, 0x0A, 0x01, //tmp_1   //01
-  0x60, 0xFF, 0xF9, 0xFF, 0x60, 0x0E, 0x0A, 0x01, //tmp_2
-  0x60, 0x9F, 0x81, 0x9F, 0x60, 0x0E, 0x0A, 0x01, //tmp_3
-  0x00, 0x24, 0x4A, 0xFF, 0x52, 0x24, 0x00, 0x00, //money   //02
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //money
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //money
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //block   //03
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //block
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //block
-};
-uint8_t fonts[][8] = {
-  0x00, 0x3E, 0x51, 0x49, 0x45, 0x3E, 0x00, 0x00,// 0
-  0x00, 0x00, 0x42, 0x7F, 0x40, 0x00, 0x00, 0x00,// 1
-  0x00, 0x42, 0x61, 0x51, 0x49, 0x46, 0x00, 0x00,// 2
-  0x00, 0x21, 0x41, 0x45, 0x4B, 0x31, 0x00, 0x00,// 3
-  0x00, 0x18, 0x14, 0x12, 0x7F, 0x10, 0x00, 0x00,// 4
-  0x00, 0x27, 0x45, 0x45, 0x45, 0x39, 0x00, 0x00,// 5
-  0x00, 0x3C, 0x4A, 0x49, 0x49, 0x30, 0x00, 0x00,// 6
-  0x00, 0x01, 0x71, 0x09, 0x05, 0x03, 0x00, 0x00,// 7
-  0x00, 0x36, 0x49, 0x49, 0x49, 0x36, 0x00, 0x00,// 8
-  0x00, 0x06, 0x49, 0x49, 0x29, 0x1E, 0x00, 0x00,// 9
-};
 void pixelShow()
 {
-  pixels.setBrightness(50);
+  pixels.setBrightness(5);
 
   for (int i = 0; i < NUMPIXELS; i++) {
     pixels.setPixelColor(i, colorR, colorG, colorB);
@@ -110,52 +77,50 @@ void write_data(int x, int number) {
   for (int m = 0; m < 8; m++) {
     b = fonts[number][m];
     for (int j = 0; j < 8; j++) {
-      pixels.setPixelColor(8 * x + 8 * m + j, 0, (b & 0x01) * 10, (b & 0x01) * 10);
+      pixels.setPixelColor(8 * x + 8 * m + j, 0, (b & 0x01) * 160, (b & 0x01) * 160);
       b >>= 1;
     }
   }
 }
-void write_data_lit(int x, int number) {
-  uint8_t b;
-  for (int m = 0; m < 4; m++) {
-    b = litle[number][m];
-    for (int j = 0; j < 8; j++) {
-      pixels.setPixelColor(8 * x + 8 * m + j, 0, (b & 0x01) * 10, (b & 0x01) * 10);
-      b >>= 1;
-    }
-  }
-}
-void write_icon(int x, int number) {
+/*
+  void write_icon(int x, int number) {
   uint8_t b[3];
   for (int m = 0; m < 8; m++) {
     for (int i = 0; i < 3; i++) {
       b[i] = icons[number * 3 + i][m];
     }
     for (int j = 0; j < 8; j++) {
-      pixels.setPixelColor(8 * x + 8 * m + j, (b[0] & 0x01) * 10, (b[1] & 0x01) * 10, (b[2] & 0x01) * 10);
+      pixels.setPixelColor(8 * x + 8 * m + j, (b[0] & 0x01) * 160, (b[1] & 0x01) * 80, (b[2] & 0x01) * 80);
       for (int i = 0; i < 3; i++) {
         b[i] >>= 1;
       }
     }
   }
+  }
+*/
+void write_Icon(int x, int n) {
+  for (int m = 0; m < 64; m++) {
+    pixels.setPixelColor(8 * x + m, Icon[n][m * 3], Icon[n][m * 3 + 1], Icon[n][m * 3 + 2]);
+  }
 }
+
 void loop() {
   read_time();
   write_data(0, ds_hour / 16);
   write_data(8, ds_hour % 16);
   write_data(16, ds_min / 16);
   write_data(24, ds_min % 16);
-  write_data_lit(32, ds_sec / 16);
-  write_data_lit(36, ds_sec % 16);
-  pixels.setPixelColor(15 * 8 + 2, 0, (ds_sec % 2) * 10, 0);
-  pixels.setPixelColor(15 * 8 + 5, 0, (ds_sec % 2) * 10, 0);
+  write_data(32, ds_sec / 16 + 10);
+  write_data(36, ds_sec % 16 + 10);
+  //write_bitmap(32, 0);
+  pixels.setPixelColor(15 * 8 + 2, 0, (ds_sec % 2) * 160, 0);
+  pixels.setPixelColor(15 * 8 + 5, 0, (ds_sec % 2) * 160, 0);
   pixels.show();
   if (((ds_sec / 16) * 10 + ds_sec % 16) == 32) {
     msg_animo();
   }
   delay(999);
 }
-
 void Get_msg() {
   HTTPClient http;
   http.begin(serverName);
@@ -255,6 +220,7 @@ void msg_animo() {
   int hum_all = hum * 10;
   int rain_all = rain * 10;
   int pm_all = pm * 10;
+  delay(200);
   for (int x = 0; x > -97 ; x--) {
     read_time();
     //draw time
@@ -262,15 +228,22 @@ void msg_animo() {
     write_data(x + 8, ds_hour % 16);
     write_data(x + 16, ds_min / 16);
     write_data(x + 24, ds_min % 16);
-    write_data_lit(x + 32, ds_sec / 16);
-    write_data_lit(x + 36, ds_sec % 16);
-    pixels.setPixelColor((x + 15) * 8 + 2, 0, (ds_sec % 2) * 10, 0);
-    pixels.setPixelColor((x + 15) * 8 + 5, 0, (ds_sec % 2) * 10, 0);
+    write_data(x + 32, ds_sec / 16 + 10);
+    write_data(x + 36, ds_sec % 16 + 10);
+    pixels.setPixelColor((x + 15) * 8 + 2, 0, (ds_sec % 2) * 30, 0);
+    pixels.setPixelColor((x + 15) * 8 + 5, 0, (ds_sec % 2) * 30, 0);
     //draw msg
-    write_icon(x + 40, 0);
-    write_data(x + 48, temp2_all / 100);
-    write_data(x + 56, temp2_all % 100 / 10);
-    write_icon(x + 64, 1);
+    if (weath) {
+      write_Icon(x + 40, 3);
+      write_data(x + 48, temp2_all / 100);
+      write_data(x + 56, temp2_all % 100 / 10);
+    } else {
+      write_Icon(x + 40, water_icon);
+      write_data(x + 48, hum_all / 100);
+      write_data(x + 56, hum_all % 100 / 10);
+    }
+
+    write_Icon(x + 64, dollor_icon);
     write_data(x + 72, class_number / 100);
     write_data(x + 80, class_number % 100 / 10);
     write_data(x + 88, class_number % 10);
@@ -279,13 +252,13 @@ void msg_animo() {
     write_data(x + 8 + 96, ds_hour % 16);
     write_data(x + 16 + 96, ds_min / 16);
     write_data(x + 24 + 96, ds_min % 16);
-    write_data_lit(x + 32 + 96, ds_sec / 16);
-    write_data_lit(x + 36 + 96, ds_sec % 16);
-    pixels.setPixelColor((x + 15 + 96) * 8 + 2, 0, (ds_sec % 2) * 10, 0);
-    pixels.setPixelColor((x + 15 + 96) * 8 + 5, 0, (ds_sec % 2) * 10, 0);
+    write_data(x + 32 + 96, ds_sec / 16 + 10);
+    write_data(x + 36 + 96, ds_sec % 16 + 10);
+    pixels.setPixelColor((x + 15 + 96) * 8 + 2, 0, (ds_sec % 2) * 30, 0);
+    pixels.setPixelColor((x + 15 + 96) * 8 + 5, 0, (ds_sec % 2) * 30, 0);
     pixels.show();
-    delay(80);
-  }
+    delay(70);
+  } weath = !weath;
 }
 void read_temp()
 {
