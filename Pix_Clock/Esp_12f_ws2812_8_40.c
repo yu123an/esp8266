@@ -56,7 +56,7 @@ int colorG;
 int colorB;
 void pixelShow()
 {
-  pixels.setBrightness(3);
+  pixels.setBrightness(8);
 
   for (int i = 0; i < NUMPIXELS; i++) {
     pixels.setPixelColor(i, colorR, colorG, colorB);
@@ -77,6 +77,16 @@ void write_data(int x, int number) {
   uint8_t b;
   for (int m = 0; m < 8; m++) {
     b = fonts[number][m];
+    for (int j = 0; j < 8; j++) {
+      pixels.setPixelColor(8 * x + 8 * m + j, 0, (b & 0x01) * 160, (b & 0x01) * 160);
+      b >>= 1;
+    }
+  }
+}
+void write_fonts(int x, int number) {
+  uint8_t b;
+  for (int m = 0; m < 8; m++) {
+    b = dm_fonts[number][m];
     for (int j = 0; j < 8; j++) {
       pixels.setPixelColor(8 * x + 8 * m + j, 0, (b & 0x01) * 160, (b & 0x01) * 160);
       b >>= 1;
