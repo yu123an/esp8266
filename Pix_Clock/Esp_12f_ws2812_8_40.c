@@ -1,3 +1,12 @@
+#include <EEPROM.h>
+#include <ESP8266mDNS.h>
+#include <ESP8266mDNS_Legacy.h>
+#include <LEAmDNS.h>
+#include <LEAmDNS_lwIPdefs.h>
+#include <LEAmDNS_Priv.h>
+#include <DNSServer.h>
+#include <strings_en.h>
+#include <WiFiManager.h>
 #include <ArduinoJson.h>
 #include <BearSSLHelpers.h>
 #include <CertStoreBearSSL.h>
@@ -30,9 +39,21 @@
 #define scl 5
 #define PIN            14
 #define NUMPIXELS      320
-//const char *ssid     = "WiFi_Name";         //WiFi名称
-//const char *password = "WiFi_Pass";   //WiFi密码
-//String serverName = "http://Your.Station.com/WebStation/tft.php";    //服务器地址
+WiFiManager wifimanager;
+char key[9];
+char local[32];
+String ssid ;         //WiFi名称
+String password ;   //WiFi密码
+int wifi_name_len;
+int wifi_pass_len;
+int wifi_name_add = 1;
+int wifi_pass_add = 41;
+int weather_local_add = 81;
+int weather_key_add = 91;
+String wifi_name;
+String wifi_pass;
+String weather_local;
+String weather_key;
 StaticJsonDocument<200> doc;
 int weather_icon = 3;
 int weath = 1;
@@ -66,6 +87,7 @@ void pixelShow()
 void setup() {
   //wifi.autoConnect("Clock","23456789");
   Wire.begin();
+  EEPROM.begin(512);
   Serial.begin(115200);
   write_time();
   pixels.begin();
@@ -136,14 +158,37 @@ void Get_msg() {
   pm = doc["weather"]["pm"];
 }
 void write_time() {
+  ssid = read_eeprom(wifi_name_add, EEPROM.read(101));
+  password = read_eeprom(wifi_pass_add, EEPROM.read(102));
   WiFi.begin(ssid, password);         //联网
   while ( WiFi.status() != WL_CONNECTED ) {
     i++;
     delay ( 500 );
     Serial.print ( "." );
-    if (i > 40) {                    //60秒后如果还是连接不上，就判定为连接超时
+    if (i > 10) {                    //60秒后如果还是连接不上，就判定为连接超时
       Serial.println("");
       Serial.print("连接超时！请检查网络环境");
+      wifimanager.resetSettings();
+      WiFiManagerParameter Weather_key("weatherkey", "Weather_api_key", key, 32);
+      WiFiManagerParameter Weather_local("weatherlocal", "Weather_local_number", local, 9);
+      wifimanager.addParameter(&Weather_key);
+      wifimanager.addParameter(&Weather_local);
+      weather_key = String(Weather_key.getValue());
+      weather_local = String(Weather_local.getValue());
+      wifimanager.autoConnect("Esp_12F");
+      ssid = String(WiFi.SSID());
+      password = String(WiFi.psk());
+      wifi_name_len = ssid.length();
+      wifi_pass_len = password.length();
+      write_eeprom(wifi_name_add, ssid);
+      write_eeprom(wifi_pass_add, password);
+      write_eeprom(weather_local_add, weather_local);
+      write_eeprom(weather_key_add, weather_key);
+      //write_eeprom(101,wifi_name_len);
+      //write_eeprom(102,wifi_pass_len);
+      EEPROM.write(101, wifi_name_len);
+      EEPROM.write(102,wifi_pass_len);
+      EEPROM.commit();
       break;
     }
   } Serial.println("");
@@ -302,4 +347,19 @@ void read_rh() {
   Serial.print(rh1);
   Serial.print(";-------------------The Stant humidity is :");
   Serial.println(rh2);
+}
+void write_eeprom(int addr, String velue) {
+  int lenth = velue.length();
+  for (int a = 0; a < lenth; a++) {
+    EEPROM.write(addr + a, velue[a]);
+  }
+  EEPROM.commit();
+}
+String read_eeprom(int addr, int lenth) {
+  String Text;
+  for (int a = 0; a < lenth; a++) {
+    Text +=  char(EEPROM.read(addr + a));
+  }
+  return Text ;
+  Serial.print(Text);
 }
