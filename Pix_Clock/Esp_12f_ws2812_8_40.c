@@ -1,59 +1,39 @@
 #include <EEPROM.h>
 #include <ESP8266mDNS.h>
-#include <ESP8266mDNS_Legacy.h>
-#include <LEAmDNS.h>
-#include <LEAmDNS_lwIPdefs.h>
-#include <LEAmDNS_Priv.h>
 #include <DNSServer.h>
-#include <strings_en.h>
 #include <WiFiManager.h>
 #include <ArduinoJson.h>
-#include <BearSSLHelpers.h>
-#include <CertStoreBearSSL.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266WiFiAP.h>
-#include <ESP8266WiFiGeneric.h>
-#include <ESP8266WiFiGratuitous.h>
-#include <ESP8266WiFiMulti.h>
-#include <ESP8266WiFiScan.h>
-#include <ESP8266WiFiSTA.h>
-#include <ESP8266WiFiType.h>
-#include <WiFiClient.h>
-#include <WiFiClientSecure.h>
-#include <WiFiClientSecureAxTLS.h>
-#include <WiFiClientSecureBearSSL.h>
-#include <WiFiServer.h>
-#include <WiFiServerSecure.h>
-#include <WiFiServerSecureAxTLS.h>
-#include <WiFiServerSecureBearSSL.h>
 #include <Wire.h>
 #include <ESP8266HTTPClient.h>
 #include <Adafruit_NeoPixel.h>
 #include <NTPClient.h>
-#include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <Ticker.h>
 #include "msg.h"
 #include "font_icon.h"
-#define sda 4
-#define scl 5
-#define PIN            14
-#define NUMPIXELS      320
+#define sda 4   //IIC data
+#define scl 5   //IIC clk
+#define PIN  14     //ws2812 data pin
+#define NUMPIXELS 320   //ws2812 number
 WiFiManager wifimanager;
-char key[9];
-char local[32];
 String ssid ;         //WiFi名称
 String password ;   //WiFi密码
-int wifi_name_len;
-int wifi_pass_len;
+/*
+ *以下为wifimanager自动配网的相关代码 
+ *申请512字节大小的EEProm空间，用来存储wifi信息以及和风天气的地区码以及api密钥
+ */
+int wifi_name_len;  //wifi name length
+int wifi_pass_len;   //wifi pass length
 int wifi_name_add = 1;
 int wifi_pass_add = 41;
 int weather_local_add = 81;
 int weather_key_add = 91;
 String wifi_name;
 String wifi_pass;
-String weather_local;
-String weather_key;
+String weather_local;//hefeng weather local number
+String weather_key;//hefeng weather api key
+char key[9];    
+char local[32]; 
 StaticJsonDocument<200> doc;
 int weather_icon = 3;
 int weath = 1;
@@ -165,7 +145,7 @@ void write_time() {
     i++;
     delay ( 500 );
     Serial.print ( "." );
-    if (i > 10) {                    //60秒后如果还是连接不上，就判定为连接超时
+    if (i > 40) {                    //60秒后如果还是连接不上，就判定为连接超时
       Serial.println("");
       Serial.print("连接超时！请检查网络环境");
       wifimanager.resetSettings();
@@ -187,7 +167,7 @@ void write_time() {
       //write_eeprom(101,wifi_name_len);
       //write_eeprom(102,wifi_pass_len);
       EEPROM.write(101, wifi_name_len);
-      EEPROM.write(102,wifi_pass_len);
+      EEPROM.write(102, wifi_pass_len);
       EEPROM.commit();
       break;
     }
@@ -250,8 +230,8 @@ void read_time() {
   minute1 = (ds_min / 16 );
   minute2 = (ds_min % 16);
   sec = ((ds_sec / 16) * 10 + ds_sec % 16);
-  Serial.println((ds_sec / 16) * 10 + ds_sec % 16);
-  Serial.println(ds_sec);
+ // Serial.println((ds_sec / 16) * 10 + ds_sec % 16);
+  //Serial.println(ds_sec);
 }
 void msg_animo() {
   read_temp();
@@ -260,17 +240,17 @@ void msg_animo() {
   int hum_all = hum * 10;
   int rain_all = rain * 10;
   int pm_all = pm * 10;
-  if(wea / 100 == 3){
+  if (wea / 100 == 3) {
     weather_icon = 4;   //rain
-  }else if(wea == 100 || wea == 150){
+  } else if (wea == 100 || wea == 150) {
     weather_icon = 2;   //sunny
-  }else if(wea == 101 || wea == 102 || wea == 103 || wea == 153 || wea == 104 || wea == 154){
+  } else if (wea == 101 || wea == 102 || wea == 103 || wea == 153 || wea == 104 || wea == 154) {
     weather_icon = 6;   //cloudy
-  }else if(wea == 100 || wea == 150){
+  } else if (wea == 100 || wea == 150) {
     weather_icon = 2;   //sunny
-  }else if(wea / 100 == 4){
+  } else if (wea / 100 == 4) {
     weather_icon = 3;   //snow
-  }else if(wea / 100 == 4){
+  } else if (wea / 100 == 4) {
     weather_icon = 9;   //haze
   }
   delay(200);
@@ -348,6 +328,9 @@ void read_rh() {
   Serial.print(";-------------------The Stant humidity is :");
   Serial.println(rh2);
 }
+/*
+ * 读写EEPROM
+ */
 void write_eeprom(int addr, String velue) {
   int lenth = velue.length();
   for (int a = 0; a < lenth; a++) {
