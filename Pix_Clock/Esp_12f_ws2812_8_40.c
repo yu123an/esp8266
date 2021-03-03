@@ -19,9 +19,9 @@ WiFiManager wifimanager;
 String ssid ;         //WiFi名称
 String password ;   //WiFi密码
 /*
- *以下为wifimanager自动配网的相关代码 
- *申请512字节大小的EEProm空间，用来存储wifi信息以及和风天气的地区码以及api密钥
- */
+  以下为wifimanager自动配网的相关代码
+  申请512字节大小的EEProm空间，用来存储wifi信息以及和风天气的地区码以及api密钥
+*/
 int wifi_name_len;  //wifi name length
 int wifi_pass_len;   //wifi pass length
 int wifi_name_add = 1;
@@ -32,9 +32,10 @@ String wifi_name;
 String wifi_pass;
 String weather_local;//hefeng weather local number
 String weather_key;//hefeng weather api key
-char key[9];    
-char local[32]; 
+char key[9];
+char local[32];
 StaticJsonDocument<200> doc;
+StaticJsonDocument<200> web;
 int weather_icon = 3;
 int weath = 1;
 int wea;
@@ -55,6 +56,37 @@ int i = 0;
 int colorR;
 int colorG;
 int colorB;
+/*
+   以下为和风天气的测试代码
+*/
+double hefeng_wind;
+String hefengServer = "https://devapi.qweather.com/v7/weather/now";
+void get_web_msg() {
+  std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
+  //client->setInsecure();
+ client->setFingerprint(fingerprint);
+  HTTPClient Hs;
+  //String Hs_web = hefengServer + "?gzip=n&location=" + read_eeprom(weather_local_add, 9) + "&key=" + read_eeprom(weather_key_add, 32);
+  String Hs_web = "/v7/weather/now?gzip=n&location=" + read_eeprom(weather_local_add, 9) + "&key=" + read_eeprom(weather_key_add, 32);
+  //Hs.begin(*client, Hs_web);
+ // Hs.begin(Hs_web.c_str(),443,fingerprint);
+ Hs.begin("devapi.qweather.com",443,Hs_web.c_str(),fingerprint);
+ delay(500);
+  String web_get = Hs.getString();
+  int len = web_get.length() + 1;
+  char json[len] ;
+  web_get.toCharArray(json, len);
+  deserializeJson(web, json);
+  hefeng_wind = web["code"];
+  Serial.println(Hs_web);
+  Serial.println(web_get);
+  Serial.println(Hs.getString());
+  Serial.println(hefeng_wind);
+  Hs.end();
+}
+/*
+  以上为和风天气的测试代码
+*/
 void pixelShow()
 {
   pixels.setBrightness(8);
@@ -117,6 +149,11 @@ void loop() {
     msg_animo();
   }
   delay(999);
+  /*Serial.println(hefeng_wind);
+  Serial.print("weather local is : ");
+  Serial.println(read_eeprom(weather_local_add, 9));
+  Serial.print("weather key is : ");
+  Serial.println(read_eeprom(weather_key_add, 32));*/
 }
 void Get_msg() {
   HTTPClient http;
@@ -136,10 +173,11 @@ void Get_msg() {
   hum = doc["weather"]["hum"];
   rain = doc["weather"]["rain"];
   pm = doc["weather"]["pm"];
+  http.end();
 }
 void write_time() {
-  ssid = read_eeprom(wifi_name_add, EEPROM.read(101));
-  password = read_eeprom(wifi_pass_add, EEPROM.read(102));
+  ssid = read_eeprom(wifi_name_add, EEPROM.read(141));
+  password = read_eeprom(wifi_pass_add, EEPROM.read(142));
   WiFi.begin(ssid, password);         //联网
   while ( WiFi.status() != WL_CONNECTED ) {
     i++;
@@ -153,11 +191,17 @@ void write_time() {
       WiFiManagerParameter Weather_local("weatherlocal", "Weather_local_number", local, 9);
       wifimanager.addParameter(&Weather_key);
       wifimanager.addParameter(&Weather_local);
-      weather_key = String(Weather_key.getValue());
-      weather_local = String(Weather_local.getValue());
+      //weather_key = String(Weather_key.getValue());
+      //weather_local = String(Weather_local.getValue());
       wifimanager.autoConnect("Esp_12F");
       ssid = String(WiFi.SSID());
       password = String(WiFi.psk());
+      weather_key = String(Weather_key.getValue());
+      weather_local = String(Weather_local.getValue());
+      Serial.print("weather local is : ");
+      Serial.println(String(Weather_local.getValue()));
+      Serial.print("weather key is : ");
+      Serial.println(String(Weather_key.getValue()));
       wifi_name_len = ssid.length();
       wifi_pass_len = password.length();
       write_eeprom(wifi_name_add, ssid);
@@ -166,8 +210,8 @@ void write_time() {
       write_eeprom(weather_key_add, weather_key);
       //write_eeprom(101,wifi_name_len);
       //write_eeprom(102,wifi_pass_len);
-      EEPROM.write(101, wifi_name_len);
-      EEPROM.write(102, wifi_pass_len);
+      EEPROM.write(141, wifi_name_len);
+      EEPROM.write(142, wifi_pass_len);
       EEPROM.commit();
       break;
     }
@@ -203,6 +247,7 @@ void write_time() {
       Serial.println("更新时间出错？？？");
     }
     Get_msg();
+    //get_web_msg();
   }
   else
   {
@@ -230,7 +275,7 @@ void read_time() {
   minute1 = (ds_min / 16 );
   minute2 = (ds_min % 16);
   sec = ((ds_sec / 16) * 10 + ds_sec % 16);
- // Serial.println((ds_sec / 16) * 10 + ds_sec % 16);
+  // Serial.println((ds_sec / 16) * 10 + ds_sec % 16);
   //Serial.println(ds_sec);
 }
 void msg_animo() {
@@ -329,8 +374,8 @@ void read_rh() {
   Serial.println(rh2);
 }
 /*
- * 读写EEPROM
- */
+   读写EEPROM
+*/
 void write_eeprom(int addr, String velue) {
   int lenth = velue.length();
   for (int a = 0; a < lenth; a++) {
