@@ -4,6 +4,7 @@
 #include <WiFiManager.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
+#include <ESP8266httpUpdate.h>
 #include <ESP8266HTTPClient.h>
 #include <Adafruit_NeoPixel.h>
 #include <NTPClient.h>
@@ -243,6 +244,7 @@ void write_time() {
     }
     Get_msg();
     Get_web_msg();
+    ota_update();
   }
   else
   {
@@ -382,4 +384,30 @@ String read_eeprom(int addr, int lenth) {
   }
   return Text ;
   Serial.print(Text);
+}
+/*
+OTA更新代码
+*/
+void ota_update() {
+  HTTPClient Ota_update;
+  String post_data = ota_chack + "?address=" + WiFi.macAddress() + "&Version=" + String(version + 1);
+  Ota_update.begin(post_data);
+  Serial.println("查询新版固件........");
+  int gg = Ota_update.GET();
+  String Is_updata = Ota_update.getString();
+  Serial.print("固件版本：");
+  Serial.println(version);
+  /*Serial.print("返回状态：");
+  Serial.println(Is_updata);
+  Serial.print("请求数据：");
+  Serial.println(post_data);
+  Serial.print("固件地址：");
+  Serial.println(ota_url);*/
+  if ( Is_updata == "OK") {
+    Serial.println("发现新版固件，准备更新........");
+    ESPhttpUpdate.update(ota_url);
+  } else {
+    Serial.println("已是最新固件，继续使用");
+  }
+  Ota_update.end();
 }
