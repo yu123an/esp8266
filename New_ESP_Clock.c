@@ -29,18 +29,17 @@
 /*
    变量
 */
-//#define INT 0         //中断按键
 #define key_mian 0
 #define key_1 0x56
 #define key_2 0x4E
 #define key_3 0x46
-
 #define _pin_ena  13/*DS1302*/
 #define _pin_clk  14
 #define _pin_dat  12
 #define BUZ 15
 #define REG_BURST             0xBE
 #define REG_WP                0x8E
+#define led A0
 int wifi_name_len;  //wifi name length
 int wifi_pass_len;   //wifi pass length
 int wifi_name_add = 1;
@@ -49,6 +48,7 @@ int wifi_name_len_add = 141;
 int wifi_pass_len_add = 142;
 int i = 0;            /*联网超时*/
 int a = 1 ;           /*亮度等级*/
+int flag = 0;
 int debug = 1;
 String ssid ;         //WiFi名称
 String password ;   //WiFi密码
@@ -213,8 +213,8 @@ String read_eeprom(int addr, int lenth) {
   Serial.print(Text);
 }
 void draw_time(uint8_t num1, uint8_t num2, uint8_t num3, uint8_t num4) {
-  //int light = (((analogRead(led) / 128) << 4) | 0x01);
-  int light = 0x41;
+  // int light = (((analogRead(led) / 128) << 4) | 0x01);
+  int light = 0x21;
   Wire.beginTransmission(0x24);
   Wire.write(light);
   while (Wire.endTransmission() != 0) {
@@ -259,7 +259,8 @@ void update_time() {
   //秒，分，时的获取及写入；
   if ( timeClient.getMinutes() != 8) {
     //set_time(timeClient.getSeconds(), timeClient.getMinutes(), int timeClient.getHours(), int day, int mouth, int dow, int year);
-    set_time(timeClient.getSeconds(), timeClient.getMinutes(), timeClient.getHours(), 2, 2, 2, 21);
+    //set_time(timeClient.getSeconds(), timeClient.getMinutes(), timeClient.getHours(), 19, 10, 2, 21);
+    set_time_mini(timeClient.getSeconds(), timeClient.getMinutes(), timeClient.getHours());
   } else {
     Serial.println("时间更新出错！！！");
   }
@@ -272,7 +273,7 @@ void Net() {
     i++;
     delay ( 500 );
     Serial.print ( "." );
-    if (i > 10) {                    //20秒后如果还是连接不上，就判定为连接超时
+    if (i > 40) {                    //20秒后如果还是连接不上，就判定为连接超时
       Serial.println("");
       Serial.print("连接超时！请检查网络环境");
       Serial.println("");
@@ -314,33 +315,57 @@ void Net() {
    中断函数
 */
 ICACHE_RAM_ATTR void setting() {
-  draw_time(0x39, 0x40, 0x00, 0x00);
+  flag = 1 - flag;
+  if (flag) {
+    Serial.print("Flag is ");
+    Serial.println(flag);
+    for (int i = 300; i > 0; i--) {
+    draw_time(number[i / 60 / 10], number[i / 60 % 10 + 10], number[i % 60 / 10 + 10], number[i % 60 % 10]);
+    for(int j = 0;j< 999;j++){
+      delayMicroseconds(1000);
+    }
+  }
+  //flag = 0;
+  } else {
+    Serial.print("Now the Flag is ");
+    Serial.println(flag);
+  }
 }
-/*
-   主函数
-*/
-void setup() {
-  // put your setup code here, to run once:
-  pinMode(key_mian, INPUT_PULLUP);
-  pinMode(_pin_ena, OUTPUT);
-  pinMode(_pin_clk, OUTPUT);
-  pinMode(_pin_dat, INPUT);
-  digitalWrite(_pin_ena, LOW);
-  digitalWrite(_pin_clk, LOW);
-  pinMode(BUZ, OUTPUT);
-  attachInterrupt(digitalPinToInterrupt(key_mian), setting, FALLING);
-  Wire.begin(5, 4);
-  EEPROM.begin(512);
-  Serial.begin(9600);
-  Net();
-}
+  /*
+     主函数
+  */
+  void setup() {
+    // put your setup code here, to run once:
+    pinMode(key_mian, INPUT);
+    pinMode(_pin_ena, OUTPUT);
+    pinMode(_pin_clk, OUTPUT);
+    pinMode(_pin_dat, INPUT);
+    digitalWrite(_pin_ena, LOW);
+    digitalWrite(_pin_clk, LOW);
+    pinMode(BUZ, OUTPUT);
+    attachInterrupt(digitalPinToInterrupt(key_mian), setting, FALLING);
+    Wire.begin(5, 4);
+    EEPROM.begin(512);
+    Serial.begin(9600);
+    Net();
+  }
 
-void loop() {
-  //Net();
-  get_time();
-  draw_time(number[hour / 10], number[hour % 10 + 10], number[minute / 10 + 10], number[minute % 10]);
-  // draw_time(0xff,0xff,0xff,0xff);
-  delay((59 - second) * 1000);
-  //delay(2000);
-  dot();
-}
+  void loop() {
+    //Net();
+    get_time();
+    draw_time(number[hour / 10], number[hour % 10 + 10], number[minute / 10 + 10], number[minute % 10]);
+    // draw_time(0xff,0xff,0xff,0xff);
+    //delay(2000);
+    if (minute % 10 == 0) {
+      dot();
+      if (minute / 10 == 0) {
+        Net();
+        draw_time(0x6F, 0x5C, 0x5C, 0x5E);
+        delay(500);
+      }
+    } else {
+      delay(1000);
+    }
+    delay((60 - second) * 1000);
+    //delay(2000);
+  }
