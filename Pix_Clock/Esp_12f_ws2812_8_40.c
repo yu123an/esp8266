@@ -1,372 +1,199 @@
+/*
+  TM1650键盘扫描阵列
+  +-------------------------------------------+
+  |  ADD  |  DIG4  |  DIG3  |  DIG2  |  DIG1  |
+  +-------------------------------------------+
+  |   A   |  0x47  |  0x46  |  0x45  |  0x44  |
+  +-------------------------------------------+
+  |   B   |  0x4F  |  0x4E  |  0x4D  |  0x4C  |
+  +-------------------------------------------+
+  |   C   |  0x57  |  0x56  |  0x55  |  0x54  |
+  +-------------------------------------------+
+  |   D   |  0x5F  |  0x5E  |  0x5D  |  0x5C  |
+  +-------------------------------------------+
+  |   E   |  0x67  |  0x66  |  0x65  |  0x64  |
+  +-------------------------------------------+
+  |   F   |  0x6F  |  0x6E  |  0x6D  |  0x6C  |
+  +-------------------------------------------+
+  |   G   |  0x77  |  0x76  |  0x75  |  0x74  |
+  +-------------------------------------------+
+*/
+/*
+   外部引用
+*/
 #include <EEPROM.h>
-#include <ESP8266mDNS.h>
-#include <DNSServer.h>
 #include <WiFiManager.h>
-#include <ArduinoJson.h>
 #include <Wire.h>
-#include <ESP8266httpUpdate.h>
-#include <ESP8266HTTPClient.h>
-#include <Adafruit_NeoPixel.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
-#include <Ticker.h>
-#include "msg.h"
-#include "font_icon.h"
-#define sda 4   //IIC data
-#define scl 5   //IIC clk
-#define PIN  14     //ws2812 data pin
-#define NUMPIXELS 320   //ws2812 number
-WiFiManager wifimanager;
-String ssid ;         //WiFi名称
-String password ;   //WiFi密码
 /*
-  以下为wifimanager自动配网的相关代码
-  申请512字节大小的EEProm空间，用来存储wifi信息以及和风天气的地区码以及api密钥
+   变量
 */
+#define key_mian 0
+#define key_1 0x56
+#define key_2 0x4E
+#define key_3 0x46
+#define _pin_ena  13/*DS1302*/
+#define _pin_clk  14
+#define _pin_dat  12
+#define BUZ 15
+#define REG_BURST             0xBE
+#define REG_WP                0x8E
+#define led A0
 int wifi_name_len;  //wifi name length
 int wifi_pass_len;   //wifi pass length
 int wifi_name_add = 1;
 int wifi_pass_add = 41;
-int weather_local_add = 81;
-int weather_key_add = 91;
-String wifi_name;
-String wifi_pass;
-String weather_local;//hefeng weather local number
-String weather_key;//hefeng weather api key
-char key[9];
-char local[32];
-StaticJsonDocument<200> doc;
-StaticJsonDocument<400> web;
-int weather_icon = 3;
-int weath = 1;
-int wea;
-int class_number;
-double win_speed;
-double temp2;
-int temp22;
-int hum;
-double rain;
-double pm;
+int wifi_name_len_add = 141;
+int wifi_pass_len_add = 142;
+int i = 0;            /*联网超时*/
+int a = 1 ;           /*亮度等级*/
+int flag = 0;
+int debug = 1;
+String ssid ;         //WiFi名称
+String password ;   //WiFi密码
+uint8_t second, minute, hour, day, mouth, dow, year;
+uint8_t number[] = {
+  //0   1     2     3     4     5     6     7     8     9
+  0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F,
+  0xBF, 0x86, 0xDB, 0xCF, 0xE6, 0xED, 0xFD, 0x87, 0xFF, 0xEF
+};
+/*
+   实例
+*/
+WiFiManager wifi;
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
-Ticker tim;
-int ds_hour, ds_min, ds_sec , sec;
-int minute1, minute2, hour1, hour2;
-int i = 0;
-int colorR;
-int colorG;
-int colorB;
-void pixelShow()
-{
-  pixels.setBrightness(8);
-
-  for (int i = 0; i < NUMPIXELS; i++) {
-    pixels.setPixelColor(i, colorR, colorG, colorB);
+NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600 * 8, 60000);
+/*
+   蜂鸣器
+*/
+void dot() {
+  for (int i = 0; i < 10; i++) {
+    digitalWrite(BUZ, 1);
+    delay(2);
+    digitalWrite(BUZ, 0);
+    delay(2);
   }
-  pixels.show();
-}
-void setup() {
-  Wire.begin();
-  EEPROM.begin(512);
-  Serial.begin(115200);
-  write_time();
-  pixels.begin();
-  pixels.setBrightness(10);
-  pixelShow();
-  tim.attach(600, write_time);
-}
-void write_data(int x, int number) {
-  uint8_t b;
-  for (int m = 0; m < 8; m++) {
-    b = fonts[number][m];
-    for (int j = 0; j < 8; j++) {
-      pixels.setPixelColor(8 * x + 8 * m + j, 0, (b & 0x01) * 160, (b & 0x01) * 160);
-      b >>= 1;
-    }
-  }
-}
-void write_fonts(int x, int number) {
-  uint8_t b;
-  for (int m = 0; m < 8; m++) {
-    b = dm_fonts[number][m];
-    for (int j = 0; j < 8; j++) {
-      pixels.setPixelColor(8 * x + 8 * m + j, 0, (b & 0x01) * 160, (b & 0x01) * 160);
-      b >>= 1;
-    }
-  }
-}
-void write_Icon(int x, int n) {
-  for (int m = 0; m < 64; m++) {
-    pixels.setPixelColor(8 * x + m, Icon[n][m * 3], Icon[n][m * 3 + 1], Icon[n][m * 3 + 2]);
-  }
-}
-
-void loop() {
-  read_time();
-  write_data(0, ds_hour / 16);
-  write_data(8, ds_hour % 16);
-  write_data(16, ds_min / 16);
-  write_data(24, ds_min % 16);
-  write_data(32, ds_sec / 16 + 10);
-  write_data(36, ds_sec % 16 + 10);
-  //write_bitmap(32, 0);
-  pixels.setPixelColor(15 * 8 + 2, 0, (ds_sec % 2) * 160, 0);
-  pixels.setPixelColor(15 * 8 + 5, 0, (ds_sec % 2) * 160, 0);
-  pixels.show();
-  if (((ds_sec / 16) * 10 + ds_sec % 16) == 32) {
-    msg_animo();
-  }
-  delay(999);
-  /*Serial.println(hefeng_wind);
-    Serial.print("weather local is : ");
-    Serial.println(read_eeprom(weather_local_add, 9));
-    Serial.print("weather key is : ");
-    Serial.println(read_eeprom(weather_key_add, 32));*/
-}
-void Get_msg() {
-  HTTPClient http;
-  http.begin(serverName);
-  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-  String post_data = "name=1";
-  http.POST(post_data);
-  String load = http.getString();
-  int len = load.length() + 1;
-  char json[len] ;
-  load.toCharArray(json, len);
-  deserializeJson(doc, json);
-  class_number = doc["num"];
-  Serial.println(load);
-  http.end();
+  delay(1000);
 }
 /*
-   以下为和风天气的获取代码
+   中断配置
 */
-String hefengServer = "https://devapi.qweather.com/v7/weather/now";
-void Get_web_msg() {
-  std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
-  client->setInsecure();
-  HTTPClient Hs;
-  String Hs_web = hefengServer + "?gzip=n&location=" +
-                  read_eeprom(weather_local_add, 9) + "&key=" +
-                  read_eeprom(weather_key_add, 32);
-  Hs.begin(*client, Hs_web);
-  int sta = Hs.GET();
-  String web_get = Hs.getString();
-  int len = web_get.length() + 1;
-  char json[len] ;
-  web_get.toCharArray(json, len);
-  deserializeJson(web, json);
-  wea = web["now"]["icon"];
-  //class_number = doc["num"];
-  win_speed = web["now"]["windScale"];
-  temp2 = web["now"]["temp"];
-  hum = web["now"]["humidity"];
-  rain = web["now"]["precip"];
-  Serial.println(web_get);
-  Serial.println(hum);
-  Serial.println(win_speed);
-  Hs.end();
-}
-/*
-  以上为和风天气的获取代码
-*/
-void write_time() {
-  ssid = read_eeprom(wifi_name_add, EEPROM.read(141));
-  password = read_eeprom(wifi_pass_add, EEPROM.read(142));
-  WiFi.begin(ssid, password);         //联网
-  while ( WiFi.status() != WL_CONNECTED ) {
-    i++;
-    delay ( 500 );
-    Serial.print ( "." );
-    if (i > 40) {                    //60秒后如果还是连接不上，就判定为连接超时
-      Serial.println("");
-      Serial.print("连接超时！请检查网络环境"); 
-      Serial.println("");
-      //wifimanager.resetSettings();
-      wifimanager.setDebugOutput(0);//关闭Debug调试
-      wifimanager.setTimeout(120);//配网超时2分钟
-      WiFiManagerParameter Weather_key("weatherkey", "和风天气密钥", key, 32);
-      WiFiManagerParameter Weather_local("weatherlocal", "城市代码", local, 9);
-      wifimanager.addParameter(&Weather_key);
-      wifimanager.addParameter(&Weather_local);
-      wifimanager.autoConnect("Hua_Weather");
-      ssid = String(WiFi.SSID());
-      password = String(WiFi.psk());
-      weather_key = String(Weather_key.getValue());
-      weather_local = String(Weather_local.getValue());
-      wifi_name_len = ssid.length();
-      wifi_pass_len = password.length();
-      write_eeprom(wifi_name_add, ssid);
-      write_eeprom(wifi_pass_add, password);
-      if (weather_key.length() == 32) {
-        write_eeprom(weather_local_add, weather_local);
-        write_eeprom(weather_key_add, weather_key);
-        Serial.println(" key is written !!! ");
-      } else {
-        Serial.println(" key error !!! ");
-      }
-      EEPROM.write(141, wifi_name_len);
-      EEPROM.write(142, wifi_pass_len);
-      EEPROM.commit();
-      break;
-    }
-  }
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("已联网，准备更新时间！！！");
-    timeClient.begin();
-    timeClient.update();
-    //秒，分，时的获取及写入；
-    int Hour_ex = timeClient.getHours();                   //hh
-    if (Hour_ex != 8) {
-      Wire.beginTransmission(0x68);
-      Wire.write(0x00);
-      int Sec_ex = timeClient.getSeconds();                   //ss
-      int dd = (Sec_ex / 10 * 16) + (Sec_ex % 10);
-      Wire.write(dd);
-      Wire.endTransmission();
-      Wire.beginTransmission(0x68);
-      Wire.write(0x01);
-      int Minu_ex = timeClient.getMinutes();                   //mm
-      int ddd = (Minu_ex / 10 * 16) + (Minu_ex % 10);
-      Wire.write(ddd);
-      Wire.endTransmission();
-      Wire.beginTransmission(0x68);
-      Wire.write(0x02);
-      int Hour_ex = timeClient.getHours();                   //hh
-      int d = (Hour_ex / 10 * 16) + (Hour_ex % 10);
-      Wire.write(d);
-      Wire.endTransmission();
-      Serial.println("时间更新完成！！！");
-    }
-    else {
-      Serial.println("更新时间出错？？？");
-    }
-    Get_msg();
-    Get_web_msg();
-    ota_update();
-  }
-  else
-  {
-    Serial.println("未联网，凑乎用吧。。。。。。");
-  }
-  WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("无线终端和接入点的连接已中断");
-  }
-  else
-  {
-    Serial.println("未能成功断开连接！");
-  }
-}
-void read_time() {
-  Wire.beginTransmission(0x68);
-  Wire.write(0x00);
-  Wire.endTransmission();
-  Wire.requestFrom(0x68, 3);
-  ds_sec = Wire.read();
-  ds_min = Wire.read();
-  ds_hour = Wire.read();
-  hour1 = (ds_hour / 16);
-  hour2 = (ds_hour % 16 );
-  minute1 = (ds_min / 16 );
-  minute2 = (ds_min % 16);
-  sec = ((ds_sec / 16) * 10 + ds_sec % 16);
-}
-void msg_animo() {
-  //read_temp();
-  int win_all = win_speed * 10;
-  int temp2_all = temp2 * 10;
-  int hum_all = hum * 10;
-  int rain_all = rain * 10;
-  int pm_all = pm * 10;
-  if (wea / 100 == 3) {
-    weather_icon = 4;   //rain
-  } else if (wea == 100 || wea == 150) {
-    weather_icon = 2;   //sunny
-  } else if (wea == 101 || wea == 102 || wea == 103 || wea == 153 || wea == 104 || wea == 154) {
-    weather_icon = 6;   //cloudy
-  } else if (wea == 100 || wea == 150) {
-    weather_icon = 2;   //sunny
-  } else if (wea / 100 == 4) {
-    weather_icon = 3;   //snow
-  } else if (wea / 100 == 4) {
-    weather_icon = 9;   //haze
-  }
-  delay(200);
-  for (int x = 0; x > -105 ; x--) {
-    read_time();
-    //draw time
-    write_data(x, ds_hour / 16);
-    write_data(x + 8, ds_hour % 16);
-    write_data(x + 16, ds_min / 16);
-    write_data(x + 24, ds_min % 16);
-    write_data(x + 32, ds_sec / 16 + 10);
-    write_data(x + 36, ds_sec % 16 + 10);
-    pixels.setPixelColor((x + 15) * 8 + 2, 0, (ds_sec % 2) * 30, 0);
-    pixels.setPixelColor((x + 15) * 8 + 5, 0, (ds_sec % 2) * 30, 0);
-    //draw msg
-    if (weath) {
-      write_Icon(x + 40, weather_icon);
-      write_data(x + 48, temp2_all / 100);
-      write_data(x + 56, temp2_all % 100 / 10);
-    } else {
-      write_Icon(x + 40, water_icon);
-      write_data(x + 48, hum_all / 100);
-      write_data(x + 56, hum_all % 100 / 10);
-    }
 
-    write_Icon(x + 64, dollor_icon);
-    write_data(x + 72, class_number / 100);
-    write_data(x + 80, class_number % 100 / 10);
-    write_data(x + 88, class_number % 10);
-    //draw time
-    write_Icon(x + 96, 10);
-    write_data(x + 104, ds_hour / 16);
-    write_data(x + 8 + 104, ds_hour % 16);
-    write_data(x + 16 + 104, ds_min / 16);
-    write_data(x + 24 + 104, ds_min % 16);
-    write_data(x + 32 + 104, ds_sec / 16 + 10);
-    write_data(x + 36 + 104, ds_sec % 16 + 10);
-    pixels.setPixelColor((x + 15 + 104) * 8 + 2, 0, (ds_sec % 2) * 30, 0);
-    pixels.setPixelColor((x + 15 + 104) * 8 + 5, 0, (ds_sec % 2) * 30, 0);
-    pixels.show();
-    delay(70);
-  } weath = !weath;
-}
-void read_temp()
+/*
+  DS1302驱动库
+*/
+void _nextBit()
 {
-  // _reset();
-  Wire.beginTransmission(0x40);
-  Wire.write(0xf3);
-  Wire.endTransmission();
-  delay(100);
-  Wire.requestFrom(0x40, 2);
-  uint8_t msb = Wire.read();
-  uint8_t lsb = Wire.read();
-  uint16_t value = msb << 8 | lsb;
-  float temp1 = value * (175.72 / 65536.0) - 46.85;
-  temp22 = int(temp1 * 10 );
-  Serial.print(" The temp is :");
-  Serial.print(temp1);
-  Serial.print(";-------------------The Stant temp is :");
-  Serial.println(temp22);
+  digitalWrite(_pin_clk, HIGH);
+  delayMicroseconds(1);
+
+  digitalWrite(_pin_clk, LOW);
+  delayMicroseconds(1);
 }
-void read_rh() {
-  Wire.beginTransmission(0x40);
-  Wire.write(0xf5);
-  Wire.endTransmission();
-  delay(40);
-  Wire.requestFrom(0x40, 2);
-  uint8_t msb = Wire.read();
-  uint8_t lsb = Wire.read();
-  uint16_t value = msb << 8 | lsb;
-  float rh1 = value * (125.0 / 65536.0) - 6.0;
-  int rh2 = int(rh1 * 10 );
-  Serial.print(" The humidity is :");
-  Serial.print(rh1);
-  Serial.print(";-------------------The Stant humidity is :");
-  Serial.println(rh2);
+uint8_t _readByte()
+{
+  uint8_t byte = 0;
+
+  for (uint8_t b = 0; b < 8; b++)
+  {
+    if (digitalRead(_pin_dat) == HIGH) byte |= 0x01 << b;
+    _nextBit();
+  }
+
+  return byte;
+}
+void _writeByte(uint8_t value)
+{
+  for (uint8_t b = 0; b < 8; b++)
+  {
+    digitalWrite(_pin_dat, (value & 0x01) ? HIGH : LOW);
+    _nextBit();
+    value >>= 1;
+  }
+}
+void _setDirection(int direction) {
+  pinMode(_pin_dat, direction);
+}
+void _prepareRead(uint8_t address)
+{
+  _setDirection(OUTPUT);
+  digitalWrite(_pin_ena, HIGH);
+  uint8_t command = 0b10000001 | address;
+  _writeByte(command);
+  _setDirection(INPUT);
+}
+void _prepareWrite(uint8_t address)
+{
+  _setDirection(OUTPUT);
+  digitalWrite(_pin_ena, HIGH);
+  uint8_t command = 0b10000000 | address;
+  _writeByte(command);
+}
+void _end()
+{
+  digitalWrite(_pin_ena, LOW);
+}
+
+uint8_t _dec2bcd(uint8_t dec)
+{
+  return ((dec / 10 * 16) + (dec % 10));
+}
+
+uint8_t _bcd2dec(uint8_t bcd)
+{
+  return ((bcd / 16 * 10) + (bcd % 16));
+}
+void get_time() {
+  _prepareRead(REG_BURST);
+  second = _bcd2dec(_readByte() & 0b01111111);
+  minute = _bcd2dec(_readByte() & 0b01111111);
+  hour   = _bcd2dec(_readByte() & 0b00111111);
+  day    = _bcd2dec(_readByte() & 0b00111111);
+  mouth  = _bcd2dec(_readByte() & 0b00011111);
+  dow    = _bcd2dec(_readByte() & 0b00000111);
+  year   = _bcd2dec(_readByte() & 0b01111111);
+  _end();
+  if (debug) {
+    Serial.print("Now time is ");
+    Serial.print(year);
+    Serial.print("-");
+    Serial.print(mouth);
+    Serial.print("-");
+    Serial.print(day);
+    Serial.print("-");
+    Serial.print(hour);
+    Serial.print(":");
+    Serial.print(minute);
+    Serial.print(":");
+    Serial.println(second);
+  }
+}
+void set_time(int sec, int minute, int hour, int day, int mouth, int dow, int year) {
+  _prepareWrite(REG_WP);
+  _writeByte(0b00000000);
+  _end();
+  _prepareWrite(REG_BURST);
+  _writeByte(_dec2bcd(sec % 60 ));
+  _writeByte(_dec2bcd(minute % 60 ));
+  _writeByte(_dec2bcd(hour   % 24 ));
+  _writeByte(_dec2bcd(day    % 32 ));
+  _writeByte(_dec2bcd(mouth  % 13 ));
+  _writeByte(_dec2bcd(dow    % 8  ));
+  _writeByte(_dec2bcd(year   % 100));
+  _writeByte(0b10000000);
+  _end();
+}
+void set_time_mini(int sec, int minute, int hour) {
+  _prepareWrite(REG_WP);
+  _writeByte(0b00000000);
+  _end();
+  _prepareWrite(REG_BURST);
+  _writeByte(_dec2bcd(sec % 60 ));
+  _writeByte(_dec2bcd(minute % 60 ));
+  _writeByte(_dec2bcd(hour   % 24 ));
+  _writeByte(0b10000000);
+  _end();
 }
 /*
    读写EEPROM
@@ -385,29 +212,162 @@ String read_eeprom(int addr, int lenth) {
   return Text ;
   Serial.print(Text);
 }
-/*
-OTA更新代码
-*/
-void ota_update() {
-  HTTPClient Ota_update;
-  String post_data = ota_chack + "?address=" + WiFi.macAddress() + "&Version=" + String(version + 1);
-  Ota_update.begin(post_data);
-  Serial.println("查询新版固件........");
-  int gg = Ota_update.GET();
-  String Is_updata = Ota_update.getString();
-  Serial.print("固件版本：");
-  Serial.println(version);
-  /*Serial.print("返回状态：");
-  Serial.println(Is_updata);
-  Serial.print("请求数据：");
-  Serial.println(post_data);
-  Serial.print("固件地址：");
-  Serial.println(ota_url);*/
-  if ( Is_updata == "OK") {
-    Serial.println("发现新版固件，准备更新........");
-    ESPhttpUpdate.update(ota_url);
-  } else {
-    Serial.println("已是最新固件，继续使用");
+void draw_time(uint8_t num1, uint8_t num2, uint8_t num3, uint8_t num4) {
+  // int light = (((analogRead(led) / 128) << 4) | 0x01);
+  int light = 0x21;
+  Wire.beginTransmission(0x24);
+  Wire.write(light);
+  while (Wire.endTransmission() != 0) {
+    delayMicroseconds(5);
   }
-  Ota_update.end();
+  Wire.beginTransmission(0x34);
+  Wire.write(num1);
+  while (Wire.endTransmission() != 0) {
+    delayMicroseconds(5);
+  }
+  Wire.beginTransmission(0x35);
+  Wire.write(num2);
+  while (Wire.endTransmission() != 0) {
+    delayMicroseconds(5);
+  }
+  Wire.beginTransmission(0x36);
+  Wire.write(num3);
+  while (Wire.endTransmission() != 0) {
+    delayMicroseconds(5);
+  }
+  Wire.beginTransmission(0x37);
+  Wire.write(num4);
+  while (Wire.endTransmission() != 0) {
+    delayMicroseconds(5);
+  }
+}
+void wifi_over() {
+  draw_time(0x6F, 0x5C, 0x5C, 0x5E);
+  delay(500);
+  draw_time(0xEF, 0x5C, 0x5C, 0x5E);
+  delay(500);
+  draw_time(0x6F, 0xDC, 0x5C, 0x5E);
+  delay(500);
+  draw_time(0x6F, 0x5C, 0xDC, 0x5E);
+  delay(500);
+  draw_time(0x6F, 0x5C, 0x5C, 0xDE);
+  delay(500);
+}
+void update_time() {
+  timeClient.begin();
+  timeClient.update();
+  //秒，分，时的获取及写入；
+  if ( timeClient.getMinutes() != 8) {
+    //set_time(timeClient.getSeconds(), timeClient.getMinutes(), int timeClient.getHours(), int day, int mouth, int dow, int year);
+    //set_time(timeClient.getSeconds(), timeClient.getMinutes(), timeClient.getHours(), 19, 10, 2, 21);
+    set_time_mini(timeClient.getSeconds(), timeClient.getMinutes(), timeClient.getHours());
+  } else {
+    Serial.println("时间更新出错！！！");
+  }
+}
+void Net() {
+  ssid = read_eeprom(wifi_name_add, EEPROM.read(wifi_name_len_add));
+  password = read_eeprom(wifi_pass_add, EEPROM.read(wifi_pass_len_add));
+  WiFi.begin(ssid, password);         //联网
+  while ( WiFi.status() != WL_CONNECTED ) {
+    i++;
+    delay ( 500 );
+    Serial.print ( "." );
+    if (i > 40) {                    //20秒后如果还是连接不上，就判定为连接超时
+      Serial.println("");
+      Serial.print("连接超时！请检查网络环境");
+      Serial.println("");
+      //wifimanager.resetSettings();
+      wifi.setSaveConfigCallback(wifi_over);
+      wifi.setDebugOutput(0);//关闭Debug调试
+      wifi.setTimeout(120);//配网超时2分钟
+      wifi.autoConnect("Hua_Clock");
+      ssid = String(WiFi.SSID());
+      password = String(WiFi.psk());
+      wifi_name_len = ssid.length();
+      wifi_pass_len = password.length();
+      write_eeprom(wifi_name_add, ssid);
+      write_eeprom(wifi_pass_add, password);
+      EEPROM.write(wifi_name_len_add, wifi_name_len);
+      EEPROM.write(wifi_pass_len_add, wifi_pass_len);
+      EEPROM.commit();
+      break;
+    }
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("已联网，准备更新时间！！！");
+    update_time();
+    Serial.println("时间更新完成！！！");
+  }
+  else {
+    Serial.println("更新时间出错？？？");
+  }
+  WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("无线终端和接入点的连接已中断");
+  }
+  else
+  {
+    Serial.println("未能成功断开连接！");
+  }
+}
+/*
+   中断函数
+*/
+ICACHE_RAM_ATTR void setting() {
+  flag = 1 - flag;
+  if (flag) {
+    Serial.print("Flag is ");
+    Serial.println(flag);
+    for (int i = 300; i > 0; i--) {
+      draw_time(number[i / 60 / 10], number[i / 60 % 10 + 10], number[i % 60 / 10 + 10], number[i % 60 % 10]);
+      for (int j = 0; j < 999; j++) {
+        delayMicroseconds(1000);
+      }
+      ESP.wdtFeed();
+    }
+    //flag = 0;
+  } else {
+    Serial.print("Now the Flag is ");
+    Serial.println(flag);
+  }
+}
+/*
+   主函数
+*/
+void setup() {
+  // put your setup code here, to run once:
+  pinMode(key_mian, INPUT);
+  pinMode(_pin_ena, OUTPUT);
+  pinMode(_pin_clk, OUTPUT);
+  pinMode(_pin_dat, INPUT);
+  digitalWrite(_pin_ena, LOW);
+  digitalWrite(_pin_clk, LOW);
+  pinMode(BUZ, OUTPUT);
+  attachInterrupt(digitalPinToInterrupt(key_mian), setting, FALLING);
+  Wire.begin(5, 4);
+  EEPROM.begin(512);
+  Serial.begin(9600);
+  // Net();
+  // delay(200);
+}
+
+void loop() {
+  //Net();
+  get_time();
+  draw_time(number[hour / 10], number[hour % 10 + 10], number[minute / 10 + 10], number[minute % 10]);
+  // draw_time(0xff,0xff,0xff,0xff);
+  //delay(2000);
+  if (minute % 10 == 0) {
+    dot();
+    if (minute / 10 == 0) {
+      Net();
+      draw_time(0x6F, 0x5C, 0x5C, 0x5E);
+      delay(500);
+    }
+  } else {
+    delay(1000);
+  }
+  delay((60 - second) * 1000);
+  //delay(2000);
 }
