@@ -348,6 +348,7 @@ ICACHE_RAM_ATTR void setting() {
     EEPROM.begin(512);
     Serial.begin(9600);
     Net();
+    delay(200);
   }
 
   void loop() {
@@ -360,6 +361,7 @@ ICACHE_RAM_ATTR void setting() {
       dot();
       if (minute / 10 == 0) {
         Net();
+        delay(200);
         draw_time(0x6F, 0x5C, 0x5C, 0x5E);
         delay(500);
       }
