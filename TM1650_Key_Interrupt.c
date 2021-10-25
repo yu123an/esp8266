@@ -19,39 +19,86 @@ TM1650键盘扫描阵列
 +-------------------------------------------+
 */
 #include <Wire.h>
+int i = 0 ;
+int light ;
+void draw_time(uint8_t num1, uint8_t num2, uint8_t num3, uint8_t num4) {
+  // int light = (((analogRead(led) / 128) << 4) | 0x01);
+  //int light = 0x29;
+  Wire.beginTransmission(0x24);
+  Wire.write(light);
+  while (Wire.endTransmission() != 0) {
+    delayMicroseconds(5);
+  }
+  Wire.beginTransmission(0x34);
+  Wire.write(num1);
+  while (Wire.endTransmission() != 0) {
+    delayMicroseconds(5);
+  }
+  Wire.beginTransmission(0x35);
+  Wire.write(num2);
+  while (Wire.endTransmission() != 0) {
+    delayMicroseconds(5);
+  }
+  Wire.beginTransmission(0x36);
+  Wire.write(num3);
+  while (Wire.endTransmission() != 0) {
+    delayMicroseconds(5);
+  }
+  Wire.beginTransmission(0x37);
+  Wire.write(num4);
+  while (Wire.endTransmission() != 0) {
+    delayMicroseconds(5);
+  }
+}
 ICACHE_RAM_ATTR void talk() {
   Wire.beginTransmission(0x24);
   Wire.write(0);
   Wire.requestFrom(0x24, 1);
-  int a  = Wire.read();
-  Serial.println(a, HEX);
-
+  int b  = Wire.read();
+  Serial.println(b, HEX);
+  draw_time(0, 0, b / 16, b % 16);
 }
-int i = 0 ;
-void setup() {
-  Wire.begin(4, 5);
-  pinMode(2, INPUT_PULLUP);
-  //attachInterrupt(digitalPinToInterrupt(2),talk,FALLING);
-  Serial.begin(9600);
-  Wire.beginTransmission(0x24);
-  Wire.write(0x49);
-  Wire.endTransmission();
-}
-void loop() {
+ICACHE_RAM_ATTR void setting() {
+  for (int j = 0; j < 50; j++) {
+    delayMicroseconds(1000);
+    ESP.wdtFeed();
+  }
   i = 1 - i;
   Wire.beginTransmission(0x24);
   Wire.write(0);
   Wire.requestFrom(0x24, 1);
   int a  = Wire.read();
-  Serial.print("+-------------------+");
-  Serial.print(a, HEX);
-  Serial.println("+-------------------+");
+  /*  Serial.print("+-------------------+");
+    Serial.print(a, HEX);
+    Serial.println("+-------------------+");*/
   if (i) {
+    light = 0x41;
     Serial.println("取消中断功能");
-    detachInterrupt(2);
+    detachInterrupt(13);
+    Wire.beginTransmission(0x24);
+    Wire.write(light);
+    Wire.endTransmission();
   } else {
+    light = 0x49;
     Serial.println("开启中断功能");
-    attachInterrupt(digitalPinToInterrupt(2), talk, FALLING);
+    Wire.beginTransmission(0x24);
+    Wire.write(light);
+    Wire.endTransmission();
+    attachInterrupt(digitalPinToInterrupt(13), talk, FALLING);
   }
-  delay(5000);
+  draw_time(0xff, 0xff, 0, 0);
+}
+void setup() {
+  light = 0x41;
+  Wire.begin(5, 4);
+  pinMode(13, INPUT);
+  Serial.begin(9600);
+  Wire.beginTransmission(0x24);
+  Wire.write(0x49);
+  Wire.endTransmission();
+  attachInterrupt(digitalPinToInterrupt(0), setting, FALLING);
+}
+void loop() {
+  draw_time(0, 0, 0, 0);
+  delay(15000);
 }
