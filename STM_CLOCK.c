@@ -180,6 +180,52 @@ void set_time_mini(int sec, int minute, int hour) {
   _writeByte(0b10000000);
   _end();
 }
+void dot() {
+  for (int i = 0; i < 20; i++) {
+    digitalWrite(BUZ, 1);
+    delay(2);
+    digitalWrite(BUZ, 0);
+    delay(2);
+  }
+  //delay(1000);
+}
+void dis_num(uint8_t num1, uint8_t num2, uint8_t num3, uint8_t num4) {
+  i2c_start();
+  i2c_write(0x48);
+  i2c_ack();
+  i2c_write(0x41);
+  i2c_ack();
+  i2c_stop();
+  i2c_start();
+  i2c_write(0x68);
+  i2c_ack();
+  i2c_write(num1);
+  i2c_ack();
+  i2c_stop();
+  i2c_start();
+  i2c_write(0x6a);
+  i2c_ack();
+  i2c_write(num2);
+  i2c_ack();
+  i2c_stop();
+  i2c_start();
+  i2c_write(0x6c);
+  i2c_ack();
+  i2c_write(num3);
+  i2c_ack();
+  i2c_stop();
+  i2c_start();
+  i2c_write(0x6e);
+  i2c_ack();
+  i2c_write(num4);
+  i2c_ack();
+  i2c_stop();
+}
+void PBB(){
+  dot();
+  dis_num(0xff,0,0x0f,0xf0);
+  delayMicroseconds(50*1000);
+}
 void setup() {
   Serial_begin(9600);
   pinMode(BUZ, OUTPUT);
@@ -190,54 +236,37 @@ void setup() {
   digitalWrite(_pin_clk, LOW);
   pinMode(scl, OUTPUT);
   pinMode(sda, OUTPUT);
-}
-/*
-   蜂鸣器
-*/
-void dis_num(uint8_t num1,uint8_t num2,uint8_t num3,uint8_t num4){
-   i2c_start();
-    i2c_write(0x48);
-    i2c_ack();
-    i2c_write(0x41);
-    i2c_ack();
-    i2c_stop();
-    i2c_start();
-    i2c_write(0x68);
-    i2c_ack();
-    i2c_write(num1);
-    i2c_ack();
-    i2c_stop();
-    i2c_start();
-    i2c_write(0x6a);
-    i2c_ack();
-    i2c_write(num2);
-    i2c_ack();
-    i2c_stop();
-    i2c_start();
-    i2c_write(0x6c);
-    i2c_ack();
-    i2c_write(num3);
-    i2c_ack();
-    i2c_stop();
-    i2c_start();
-    i2c_write(0x6e);
-    i2c_ack();
-    i2c_write(num4);
-    i2c_ack();
-    i2c_stop();
-}
-void dot() {
-  for (int i = 0; i < 20; i++) {
-    digitalWrite(BUZ, 1);
-    delay(2);
-    digitalWrite(BUZ, 0);
-    delay(2);
-  }
-  //delay(1000);
+  /*
+     STM INTERRUPT SETTING
+  */
+  //PA3
+  GPIO_Init(GPIOA, GPIO_PIN_3, GPIO_MODE_IN_FL_IT);
+  disableInterrupts();
+  EXTI_SetExtIntSensitivity( EXTI_PORT_GPIOA, FALLING);
+  enableInterrupts();
+  attachInterrupt(INT_PORTA & 0xff, PBB, 0);
+  //PB5
+  GPIO_Init(GPIOB, GPIO_PIN_5, GPIO_MODE_IN_FL_IT);
+  disableInterrupts();
+  EXTI_SetExtIntSensitivity( EXTI_PORT_GPIOB, FALLING);
+  enableInterrupts();
+  attachInterrupt(INT_PORTB & 0xff, PBB, 0);
+   //PC7
+  GPIO_Init(GPIOC, GPIO_PIN_7, GPIO_MODE_IN_FL_IT);
+  disableInterrupts();
+  EXTI_SetExtIntSensitivity( EXTI_PORT_GPIOC, FALLING);
+  enableInterrupts();
+  attachInterrupt(INT_PORTC & 0xff, PBB, 0);
+  //PD2
+  GPIO_Init(GPIOD, GPIO_PIN_2, GPIO_MODE_IN_FL_IT);
+  disableInterrupts();
+  EXTI_SetExtIntSensitivity( EXTI_PORT_GPIOD, FALLING);
+  enableInterrupts();
+  attachInterrupt(INT_PORTD & 0xff, PBB, 0);
 }
 void loop() {
   get_time();
   //dot();
-  dis_num(number[minute / 10],number[minute % 10],number[second / 10],number[second % 10]);
+  dis_num(number[minute / 10], number[minute % 10], number[second / 10], number[second % 10]);
   delay(998);
 }
