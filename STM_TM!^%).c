@@ -45,45 +45,18 @@ void i2c_ack() {
 }
 void i2c_write(uint8_t data) {
   pinMode(sda, OUTPUT);
-  int t = data;
-  int arr[8];
-  for (int i = 0; i <= 7; i++) {
-    if (data % 2) {
-      arr[i] = 1;
-    }
-    else
-    {
-      arr[i] = 0;
-    }
-    data /= 2;
-  }
-  //if(dot){arr[0] = 1}else{arr[0] = 0}
   for ( int j = 7; j >= 0; j--) {
-    if (arr[j])
-    {
-      digitalWrite(sda, 1);
-      delayMicroseconds(2);
+      digitalWrite(sda, (data >> j) & 0x01);
+      delayMicroseconds(1);
       digitalWrite(scl, 0);
-      delayMicroseconds(2);
+      delayMicroseconds(1);
       digitalWrite(scl, 1);
-      delayMicroseconds(2);
+      delayMicroseconds(1);
       digitalWrite(scl, 0);
-      delayMicroseconds(2);
-      digitalWrite(sda, 0);
-    } else {
-      delayMicroseconds(2);
-      digitalWrite(sda, 0);
-      delayMicroseconds(2);
-      digitalWrite(scl, 0);
-      delayMicroseconds(2);
-      digitalWrite(scl, 1);
-      delayMicroseconds(2);
-      digitalWrite(scl, 0);
-      delayMicroseconds(2);
+      delayMicroseconds(1);
       digitalWrite(sda, 0);
     }
-    pinMode(sda, OUTPUT);
-  }
+   
 }
 void setup() {
   pinMode(scl, OUTPUT);
@@ -105,13 +78,11 @@ void loop() {
     i2c_write(number[i]);
     i2c_ack();
     i2c_stop();
-    i2c_stop();
     i2c_start();
     i2c_write(0x6a);
     i2c_ack();
     i2c_write(number[i]);
     i2c_ack();
-    i2c_stop();
     i2c_stop();
     i2c_start();
     i2c_write(0x6c);
@@ -119,14 +90,13 @@ void loop() {
     i2c_write(number[i]);
     i2c_ack();
     i2c_stop();
-    i2c_stop();
     i2c_start();
     i2c_write(0x6e);
     i2c_ack();
     i2c_write(number[i]);
     i2c_ack();
     i2c_stop();
-    delay(2000);
+    delay(200);
   }
   delay(2000);
 }
