@@ -28,7 +28,7 @@ void i2c_stop() {
 void i2c_ack() {
   int v = digitalRead(sda);
   while (v == 1) {
-    delay(10);
+    delayMicroseconds(1);
     Serial_println_s("wite the call back");
     v = digitalRead(sda);
   }
