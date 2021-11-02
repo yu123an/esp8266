@@ -213,7 +213,7 @@ void set_time_mini(int sec, int minute, int hour)
 }
 void dot()
 {
-  for (int i = 0; i < 20; i++)
+  for (int i = 0; i < 5; i++)
   {
     digitalWrite(BUZ, 1);
     delay(2);
@@ -275,6 +275,7 @@ void dis_num(uint8_t addr, uint8_t data)
 void PA3_INT()
 {
   DIS_FLAG += 1;
+  dot();
   if (DIS_FLAG == 6)
   {
     DIS_FLAG = 0;
@@ -283,6 +284,7 @@ void PA3_INT()
 void PB5_INT()
 {
   DIS_FLAG = 0;
+  dot();
   _prepareRead(REG_FLAG[1]);
   CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[1]);
   _end();
@@ -300,6 +302,7 @@ void PB5_INT()
 }
 void PC7_INT()
 {
+  dot();
   _prepareRead(REG_FLAG[DIS_FLAG]);
   CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
   _end();
@@ -314,6 +317,7 @@ void PC7_INT()
 }
 void PD2_INT()
 {
+  dot();
   _prepareRead(REG_FLAG[DIS_FLAG]);
   CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
   _end();
