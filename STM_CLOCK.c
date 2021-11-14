@@ -14,6 +14,7 @@ Key:
 //#define light PD3 /*Light*/
 #define REG_BURST 0xBE
 #define REG_WP 0x8E
+#define bat A2
 int DIS_FLAG = 0; /*DisPlay Flag*/
 int CHANGE_NUMER;
 uint8_t Light;
@@ -32,6 +33,51 @@ uint8_t number[] = {
     //0   1     2     3     4     5     6     7     8     9
     0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F,
     0xBF, 0x86, 0xDB, 0xCF, 0xE6, 0xED, 0xFD, 0x87, 0xFF, 0xEF};
+void ADC_INT()
+{
+  GPIO_Init(GPIOC, GPIO_PIN_4, GPIO_MODE_IN_FL_NO_IT);
+
+  ADC1_DeInit(); //ADC1_CONVERSIONMODE_CONTINUOUS
+
+  ADC1_Init(ADC1_CONVERSIONMODE_SINGLE, //单次转换
+
+            ADC1_CHANNEL_2, //通道
+
+            ADC1_PRESSEL_FCPU_D4, //预定标器选择 分频器  fMASTER 可以被分频 2 到 18
+
+            ADC1_EXTTRIG_TIM, //从内部的TIM1 TRGO事件转换
+
+            DISABLE, //是否使能该触发方式
+
+            ADC1_ALIGN_RIGHT, //对齐方式（可以左右对齐）
+
+            ADC1_SCHMITTTRIG_CHANNEL2, //指定触发通道
+
+            ENABLE); //是否使能指定触发通道
+
+  ADC1_Cmd(ENABLE);
+}
+uint16_t ADC_GET()
+{
+  uint16_t value, temph;
+
+  uint8_t templ;
+
+  ADC1_StartConversion();
+
+  // 定义templ存储低8位数据  temph存储高8位数据
+
+  while (!(ADC1->CSR & 0x80))
+    ; //等待转换完成
+
+  templ = ADC1->DRL;
+
+  temph = ADC1->DRH; //读取ADC转换  在左对齐和右对齐模式下 读取数据的顺序不同  参考STM8寄存器.PDFP371
+
+  value = (templ | (temph << 8)); //注意是10位的转换精度 value、temph应为unsigned int 变量
+  float charing = value * 6.6 * 100 / 1024;
+  return charing;
+}
 void i2c_start()
 {
   digitalWrite(scl, 1);
@@ -341,6 +387,8 @@ void setup()
   digitalWrite(_pin_clk, LOW);
   pinMode(scl, OUTPUT);
   pinMode(sda, OUTPUT);
+  ADC_INT();
+  Serial_println_s("!!!!!!!!!");
   /*
   */
   _prepareWrite(REG_WP);
@@ -349,7 +397,7 @@ void setup()
   _prepareWrite(REG_FLAG[1]);
   _writeByte(_dec2bcd(5));
   _prepareWrite(REG_FLAG[2]);
-  _writeByte(_dec2bcd(2));
+  _writeByte(_dec2bcd(1));
   _writeByte(0b10000000);
   _end();
 
@@ -383,6 +431,12 @@ void setup()
 }
 void loop()
 {
+  int adc = 0;
+  Serial_print_s("The battery is :");
+  for(int nA = 0;nA < 8;nA++){
+    adc += ADC_GET();
+  }
+  Serial_println_i(adc >> 3);
   _prepareRead(REG_FLAG[2]);
   Light = _bcd2dec(_readByte() & left_FLAG[2]) % 8 + 1;
   _end();
@@ -398,6 +452,7 @@ void loop()
     dis_num(0x6E, number[minute % 10]);
     delay(998);
     break;
+    /*
   case 1:
     // get_time();
     _prepareRead(REG_FLAG[DIS_FLAG]);
@@ -474,6 +529,16 @@ void loop()
     CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
     _end();
     dis_num(0x68, IMG_FLAG[8]);
+    dis_num(0x6A, 0x40);
+    dis_num(0x6C, number[CHANGE_NUMER / 10]);
+    dis_num(0x6E, number[CHANGE_NUMER % 10]);
+    break;
+    */
+  default:
+    _prepareRead(REG_FLAG[DIS_FLAG]);
+    CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
+    _end();
+    dis_num(0x68, IMG_FLAG[DIS_FLAG]);
     dis_num(0x6A, 0x40);
     dis_num(0x6C, number[CHANGE_NUMER / 10]);
     dis_num(0x6E, number[CHANGE_NUMER % 10]);
