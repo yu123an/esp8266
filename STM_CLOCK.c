@@ -28,7 +28,8 @@ uint8_t IMG_FLAG[] = {
     /*8   C     L     S     F     H     d     y     n*/
     0xFF, 0x39, 0x38, 0x6D, 0x71, 0x76, 0x5E, 0x6E, 0x54};
 uint8_t second, minute, hour, day, mouth, dow, year;
-int debug = 1;
+int debug = 0;
+int Deadline = 0;
 uint8_t number[] = {
     //0   1     2     3     4     5     6     7     8     9
     0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F,
@@ -320,7 +321,15 @@ void dis_num(uint8_t addr, uint8_t data)
 }
 void PA3_INT()
 {
-  DIS_FLAG += 1;
+  if (DIS_FLAG == 9)
+  {
+    DIS_FLAG = 0;
+    Deadline = 0;
+  }
+  else
+  {
+    DIS_FLAG += 1;
+  }
   dot();
   if (DIS_FLAG == 6)
   {
@@ -329,7 +338,7 @@ void PA3_INT()
 }
 void PB5_INT()
 {
-  DIS_FLAG = 0;
+  /* DIS_FLAG = 0;
   dot();
   _prepareRead(REG_FLAG[1]);
   CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[1]);
@@ -344,7 +353,8 @@ void PB5_INT()
     {
       delayMicroseconds(1000);
     }
-  }
+  }*/
+  DIS_FLAG = 9;
 }
 void PC7_INT()
 {
@@ -431,12 +441,15 @@ void setup()
 }
 void loop()
 {
+ /*
   int adc = 0;
   Serial_print_s("The battery is :");
-  for(int nA = 0;nA < 8;nA++){
+  for (int nA = 0; nA < 8; nA++)
+  {
     adc += ADC_GET();
   }
   Serial_println_i(adc >> 3);
+  */
   _prepareRead(REG_FLAG[2]);
   Light = _bcd2dec(_readByte() & left_FLAG[2]) % 8 + 1;
   _end();
@@ -534,6 +547,25 @@ void loop()
     dis_num(0x6E, number[CHANGE_NUMER % 10]);
     break;
     */
+  //倒计时显示
+  case 9:
+    _prepareRead(REG_FLAG[1]);
+    CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[1]);
+    _end();
+    if (Deadline < CHANGE_NUMER * 60)
+    {
+      dis_num(0x68, number[(CHANGE_NUMER * 60 - Deadline) / 60 / 10]);
+      dis_num(0x6A, number[(CHANGE_NUMER * 60 - Deadline) / 60 % 10 + 10]);
+      dis_num(0x6C, number[(CHANGE_NUMER * 60 - Deadline) % 60 / 10 + 10]);
+      dis_num(0x6E, number[(CHANGE_NUMER * 60 - Deadline) % 60 % 10]);
+    }
+    else
+    {
+      DIS_FLAG = 0;
+    }
+    Deadline += 1;
+    delay(999);
+    break;
   default:
     _prepareRead(REG_FLAG[DIS_FLAG]);
     CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
