@@ -258,6 +258,17 @@ void set_time_mini(int sec, int minute, int hour)
   _writeByte(0b10000000);
   _end();
 }
+int DIS_BAT()
+{
+  int adc = 0;
+  Serial_print_s("The battery is :");
+  for (int nA = 0; nA < 8; nA++)
+  {
+    adc += ADC_GET();
+  }
+  //Serial_println_i(adc >> 3);
+  return adc >> 3;
+}
 void dot()
 {
   for (int i = 0; i < 5; i++)
@@ -441,7 +452,7 @@ void setup()
 }
 void loop()
 {
- /*
+  /*
   int adc = 0;
   Serial_print_s("The battery is :");
   for (int nA = 0; nA < 8; nA++)
@@ -463,6 +474,19 @@ void loop()
     dis_num(0x6A, number[hour % 10 + 10 * (second % 2)]);
     dis_num(0x6C, number[minute / 10 + 10 * (second % 2)]);
     dis_num(0x6E, number[minute % 10]);
+    if ((minute == 0) && (second == 13))
+    {
+      if (DIS_BAT() < 370)
+      {
+        dis_num(0x68, 0);
+        dis_num(0x6A, 0);
+        dis_num(0x6C, 0);
+        dis_num(0x6E, 0x01);
+        for(uint16_t t = 0;t < 0xFFFF;t++){
+          delay(9000);
+        }
+      }
+    }
     delay(998);
     break;
     /*
@@ -564,7 +588,7 @@ void loop()
       DIS_FLAG = 0;
     }
     Deadline += 1;
-    delay(999);
+    delay(998);
     break;
   default:
     _prepareRead(REG_FLAG[DIS_FLAG]);
@@ -574,6 +598,7 @@ void loop()
     dis_num(0x6A, 0x40);
     dis_num(0x6C, number[CHANGE_NUMER / 10]);
     dis_num(0x6E, number[CHANGE_NUMER % 10]);
+    delay(99);
     break;
   }
 }
