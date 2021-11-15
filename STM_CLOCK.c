@@ -349,22 +349,7 @@ void PA3_INT()
 }
 void PB5_INT()
 {
-  /* DIS_FLAG = 0;
-  dot();
-  _prepareRead(REG_FLAG[1]);
-  CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[1]);
-  _end();
-  for (int timer = CHANGE_NUMER * 60; timer > 0; timer--)
-  {
-    dis_num(0x68, number[timer / 60 / 10]);
-    dis_num(0x6A, number[timer / 60 % 10 + 10 * (timer % 2)]);
-    dis_num(0x6C, number[timer % 60 / 10 + 10 * (timer % 2)]);
-    dis_num(0x6E, number[timer % 60 % 10]);
-    for (int a = 0; a < 999; a++)
-    {
-      delayMicroseconds(1000);
-    }
-  }*/
+
   DIS_FLAG = 9;
 }
 void PC7_INT()
@@ -452,15 +437,7 @@ void setup()
 }
 void loop()
 {
-  /*
-  int adc = 0;
-  Serial_print_s("The battery is :");
-  for (int nA = 0; nA < 8; nA++)
-  {
-    adc += ADC_GET();
-  }
-  Serial_println_i(adc >> 3);
-  */
+
   _prepareRead(REG_FLAG[2]);
   Light = _bcd2dec(_readByte() & left_FLAG[2]) % 8 + 1;
   _end();
@@ -482,95 +459,22 @@ void loop()
         dis_num(0x6A, 0);
         dis_num(0x6C, 0);
         dis_num(0x6E, 0x01);
-        for(uint16_t t = 0;t < 0xFFFF;t++){
+        for (uint16_t t = 0; t < 0xFFFF; t++)
+        {
           delay(9000);
         }
       }
     }
+    else if (second == 23)
+    {
+      int BAT = DIS_BAT();
+      dis_num(0x68, BAT / 100 + 10);
+      dis_num(0x6A, BAT % 100 / 10);
+      dis_num(0x6C, BAT % 100);
+      dis_num(0x6E, 0x62);
+    }
     delay(998);
     break;
-    /*
-  case 1:
-    // get_time();
-    _prepareRead(REG_FLAG[DIS_FLAG]);
-    CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
-    _end();
-    dis_num(0x68, IMG_FLAG[1]);
-    dis_num(0x6A, 0x40);
-    dis_num(0x6C, number[CHANGE_NUMER / 10]);
-    dis_num(0x6E, number[CHANGE_NUMER % 10]);
-    break;
-  case 2:
-    // get_time();
-    _prepareRead(REG_FLAG[DIS_FLAG]);
-    CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
-    _end();
-    dis_num(0x68, IMG_FLAG[2]);
-    dis_num(0x6A, 0x40);
-    dis_num(0x6C, number[CHANGE_NUMER / 10]);
-    dis_num(0x6E, number[CHANGE_NUMER % 10]);
-    break;
-  case 3:
-    // get_time();
-    _prepareRead(REG_FLAG[DIS_FLAG]);
-    CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
-    _end();
-    dis_num(0x68, IMG_FLAG[3]);
-    dis_num(0x6A, 0x40);
-    dis_num(0x6C, number[CHANGE_NUMER / 10]);
-    dis_num(0x6E, number[CHANGE_NUMER % 10]);
-    break;
-  case 4:
-    // get_time();
-    _prepareRead(REG_FLAG[DIS_FLAG]);
-    CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
-    _end();
-    dis_num(0x68, IMG_FLAG[4]);
-    dis_num(0x6A, 0x40);
-    dis_num(0x6C, number[CHANGE_NUMER / 10]);
-    dis_num(0x6E, number[CHANGE_NUMER % 10]);
-    break;
-  case 5:
-    // get_time();
-    _prepareRead(REG_FLAG[DIS_FLAG]);
-    CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
-    _end();
-    dis_num(0x68, IMG_FLAG[5]);
-    dis_num(0x6A, 0x40);
-    dis_num(0x6C, number[CHANGE_NUMER / 10]);
-    dis_num(0x6E, number[CHANGE_NUMER % 10]);
-    break;
-  case 6:
-    // get_time();
-    _prepareRead(REG_FLAG[DIS_FLAG]);
-    CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
-    _end();
-    dis_num(0x68, IMG_FLAG[6]);
-    dis_num(0x6A, 0x40);
-    dis_num(0x6C, number[CHANGE_NUMER / 10]);
-    dis_num(0x6E, number[CHANGE_NUMER % 10]);
-    break;
-  case 7:
-    // get_time();
-    _prepareRead(REG_FLAG[DIS_FLAG]);
-    CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
-    _end();
-    dis_num(0x68, IMG_FLAG[7]);
-    dis_num(0x6A, 0x40);
-    dis_num(0x6C, number[CHANGE_NUMER / 10]);
-    dis_num(0x6E, number[CHANGE_NUMER % 10]);
-    break;
-  case 8:
-    // get_time();
-    _prepareRead(REG_FLAG[DIS_FLAG]);
-    CHANGE_NUMER = _bcd2dec(_readByte() & left_FLAG[DIS_FLAG]);
-    _end();
-    dis_num(0x68, IMG_FLAG[8]);
-    dis_num(0x6A, 0x40);
-    dis_num(0x6C, number[CHANGE_NUMER / 10]);
-    dis_num(0x6E, number[CHANGE_NUMER % 10]);
-    break;
-    */
   //倒计时显示
   case 9:
     _prepareRead(REG_FLAG[1]);
