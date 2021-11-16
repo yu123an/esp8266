@@ -465,14 +465,14 @@ void loop()
         }
       }
     }
-    else if (second == 23)
+    /*else if (second == 23)
     {
       int BAT = DIS_BAT();
       dis_num(0x68, BAT / 100 + 10);
       dis_num(0x6A, BAT % 100 / 10);
       dis_num(0x6C, BAT % 100);
       dis_num(0x6E, 0x62);
-    }
+    }*/
     delay(998);
     break;
   //倒计时显示
