@@ -313,6 +313,7 @@ void write_data(uint8_t data, uint8_t Long，bool Write_flag)
             }
         }
     }
+}
 void dis_num(uint8_t addr, uint8_t data)
 {
 }
