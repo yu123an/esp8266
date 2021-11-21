@@ -274,6 +274,45 @@ void set_time_mini(int sec, int minute, int hour)
     _writeByte(0b10000000);
     _end();
 }
+/*
+合并操作
+兼容HT1621与DS1302；共用IO线与DAT线，节省IO消耗
+区别：
+HT：字节位数不定，数据左移；由高至低：01234567
+DS：字节位数固定，数据右移；由低至高；76543210
+Write_flag作为判断标志位，1位HT1621；0为DS1302
+*/
+void write_data(uint8_t data, uint8_t Long，bool Write_flag)
+{
+    if (Write_flag)
+    {
+        for (int i = 0; i < Long; i++)
+        {
+            digitalWrite(wr_p, LOW);
+            delayMicroseconds(4);
+            /* if (data & 0x80)
+            {
+                digitalWrite(data_p, HIGH);
+            }
+            else
+            {
+                digitalWrite(data_p, LOW);
+            }*/
+            digitalWrite(data_p, (data & 0x01) ? HIGH : LOW);
+            digitalWrite(wr_p, HIGH);
+            delayMicroseconds(4);
+            data <<= 1;
+        }
+        else
+        {
+            for (uint8_t b = 0; b < 8; b++)
+            {
+                digitalWrite(_pin_dat, (data & 0x01) ? HIGH : LOW);
+                _nextBit();
+                data >>= 1;
+            }
+        }
+    }
 void dis_num(uint8_t addr, uint8_t data)
 {
 }
