@@ -1,18 +1,23 @@
-
+/*
+Key:
++-------+-------+-------+-------+
+|--PB5--+--PD2--+--PC7--+--PA1--|
++-------+-------+-------+-------+
+*/
 //字模
 //七段
 /*                          +----------------------+
-    A                       +---+ G F A B E D C Dp |
-  +---------+                 | 0 | 0 1 1 1 1 1 1 0  |    0X7E
-  |         |                 | 1 | 0 0 0 1 0 0 1 0  |    0X12
-  | F       | B               | 2 | 1 0 1 1 1 1 0 0  |    0XBC
-  |         |                 | 3 | 1 0 1 1 0 1 1 0  |    0XB6
-  |         |                 | 4 | 1 1 0 1 0 0 1 0  |    0XD2
-  +----G----+                 | 5 | 1 1 1 0 0 1 1 0  |    0XE5
-  |         |                 | 6 | 1 1 1 0 1 1 1 0  |    0XEE
-  | E       | C               | 7 | 0 0 1 1 0 0 1 0  |    0X32
-  |         |                 | 8 | 1 1 1 1 1 1 1 0  |    0XFE
-  |         |                 | 9 | 1 1 1 1 0 1 1 0  |    0XF5
+   // A                       +---+ G F A B E D C Dp |    0-7     7-0
+  +---------+                 | 0 | 0 1 1 1 1 1 1 0  |    0X7E    0x7E
+  |         |                 | 1 | 0 0 0 1 0 0 1 0  |    0X12    0x48
+  | F       | B               | 2 | 1 0 1 1 1 1 0 0  |    0XBC    0x3D
+  |         |                 | 3 | 1 0 1 1 0 1 1 0  |    0XB6    0x6D
+  |         |                 | 4 | 1 1 0 1 0 0 1 0  |    0XD2    0x4B
+  +----G----+                 | 5 | 1 1 1 0 0 1 1 0  |    0XE5    0x67
+  |         |                 | 6 | 1 1 1 0 1 1 1 0  |    0XEE    0x77
+  | E       | C               | 7 | 0 0 1 1 0 0 1 0  |    0X32    0x4C
+  |         |                 | 8 | 1 1 1 1 1 1 1 0  |    0XFE    0x7F
+  |         |                 | 9 | 1 1 1 1 0 1 1 0  |    0XF5    0x6F
   +---------+                 +---+------------------+-----
     D
 */
@@ -37,7 +42,7 @@
 */
 //阵脚引用待调整
 #include <Arduino.h>
-#define cs_HT PD3 //PB4 /*HT1621*/
+#define cs_HT PB4 //PB4,LCD_NEW  /*HT1621*/
 //#define clk PA1   //PA3
 //#define dat PA2 //PA2
 /*
@@ -54,7 +59,7 @@
   #define TONEOFF 0X10 //0b1000 0001 0000 关闭声音输出
   #define WDTDIS1 0X0A //0b1000 0000 1010  禁止看门狗
 */
-//先更改至从右至左进行写入
+//现更改至从右至左进行写入
 #define BIAS 0x02    //0b1000 0100 0000  1/2duty 2com
 #define SYSDIS 0X00  //0b1000 0000 0000  关振系统荡器和LCD偏压发生器
 #define SYSEN 0X40   //0b1000 0000 0010 打开系统振荡器
@@ -66,8 +71,8 @@
 #define TONEOFF 0X08 //0b1000 0001 0000 关闭声音输出
 #define WDTDIS1 0X50 //0b1000 0000 1010  禁止看门狗
 
-#define cs_DS PD4 //PC6 /*DS1302*/
-#define clk PA1   //PA3
+#define cs_DS PC6 //PC6,LCD_NEW /*DS1302*/
+#define clk PA3   //PA3
 #define dat PA2   //PA2
 #define REG_BURST 0xBE
 #define REG_WP 0x8E
@@ -77,25 +82,30 @@ int CHANGE_NUMER;
 uint8_t Light;
 //数组
 uint8_t REG_FLAG[] = {
-    /*8   C     L     S     F     H     d     y     n*/
-    0xFF, 0xE2, 0xE4, 0x80, 0x82, 0x84, 0x86, 0x88, 0x8C};
+    /*8   C     S     F     H     d     y     n*/
+    0xFF, 0xE2, 0x80, 0x82, 0x84, 0x86, 0x88, 0x8C};
 uint8_t left_FLAG[] = {
-    /*8   C     L     S     F     H     d     y     n*/
-    0xFF, 0xFF, 0xFF, 0x7F, 0x7F, 0x3F, 0x3F, 0x1F, 0x7F};
+    /*8   C     S     F     H     d     y     n*/
+    0xFF, 0xFF, 0x7F, 0x7F, 0x3F, 0x3F, 0x1F, 0x7F};
 uint8_t IMG_FLAG[] = {
-    /*8   C     L     S     F     H     d     y     n*/
-    0xFF, 0x39, 0x38, 0x6D, 0x71, 0x76, 0x5E, 0x6E, 0x54};
+    /*8   C     S     F     H     d     y     n*/
+    0xFF, 0x39, 0x6D, 0x71, 0x76, 0x5E, 0x6E, 0x54};
 uint8_t second, minute, hour, day, mouth, dow, year;
 int debug = 1;
 int Deadline = 0;
+/*
+//TM1650数字字模
 uint8_t number[] = {
     //0   1     2     3     4     5     6     7     8     9
     0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F,
     0xBF, 0x86, 0xDB, 0xCF, 0xE6, 0xED, 0xFD, 0x87, 0xFF, 0xEF};
 
 uint8_t num_DIS[] = {
+   //0   1     2     3     4     5     6     7     8     9
     0x7e, 0x12, 0xBC, 0xB6, 0xD2, 0xE5, 0xEE, 0x32, 0xFE, 0xF5};
-
+*/
+uint8_t num_HT[] = {
+    0x7E, 0x48, 0x3D, 0x6D, 0x4B, 0x67, 0x77, 0x4C, 0x7F, 0x6F};
 //R&W data
 //统一为从右至左操作
 //按照DS3102的逻辑进行处理
@@ -284,6 +294,30 @@ void HT1621_INT()
   pinMode(dat, OUTPUT);
   HT1621_begin();
 }
+//显示字符，四位一体
+void HT_DIS(uint8_t num1, uint8_t num2, uint8_t num3, uint8_t num4)
+{
+  digitalWrite(cs_HT, LOW);
+  Write_data(0x05, 3);
+  Write_addr(0 << 2, 6);
+  for (int m = 0; m < 8; m++)
+  {
+    Write_data((num1 & (0x01 << m)) >> m, 4);
+  }
+  for (int m = 0; m < 8; m++)
+  {
+    Write_data((num2 & (0x01 << m)) >> m, 4);
+  }
+  for (int m = 0; m < 8; m++)
+  {
+    Write_data((num3 & (0x01 << m)) >> m, 4);
+  }
+  for (int m = 0; m < 8; m++)
+  {
+    Write_data((num4 & (0x01 << m)) >> m, 4);
+  }
+  digitalWrite(cs_HT, HIGH);
+}
 //ADC电量检测
 void ADC_INT()
 {
@@ -343,7 +377,7 @@ int DIS_BAT()
 }
 
 //中断函数
-void PA3_INT()
+void PA1_INT()
 {
   if (DIS_FLAG == 9)
   {
@@ -400,11 +434,11 @@ void interrupt_int()
      STM INTERRUPT SETTING
   */
   //PA3
-  GPIO_Init(GPIOA, GPIO_PIN_3, GPIO_MODE_IN_FL_IT);
+  GPIO_Init(GPIOA, GPIO_PIN_1, GPIO_MODE_IN_FL_IT);
   disableInterrupts();
   EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOA, FALLING);
   enableInterrupts();
-  attachInterrupt(INT_PORTA & 0xff, PA3_INT, 0);
+  attachInterrupt(INT_PORTA & 0xff, PA1_INT, 0);
   //PB5
   GPIO_Init(GPIOB, GPIO_PIN_5, GPIO_MODE_IN_FL_IT);
   disableInterrupts();
@@ -429,15 +463,57 @@ void setup()
 {
   DS1302_INT();
   HT1621_INT();
-  set_time(0, 55, 11, 2, 11, 5, 19);
+  //DS1302读写测试，平时注释掉即可
+  // set_time(0, 55, 11, 2, 11, 5, 19);
 }
 
 void loop()
 {
-  Write_dataClkData_(0x00, 0x3F);
-  delay(2000);
-  Write_dataClkData_(0x00, 0x00);
-  delay(2000);
-  get_time();
-  HT1621_INT();
+  switch (DIS_FLAG)
+  {
+  case 0:
+    get_time();
+    HT1621_INT();
+    //显示时间
+    HT_DIS(num_HT[hour % 10], num_HT[hour / 10],
+           num_HT[minute % 10], num_HT[minute / 10] + 0x80);
+    if (second == 23)
+    {
+      int BAT = DIS_BAT();
+      HT_DIS(num_HT[BAT / 100] + 0x80, num_HT[BAT % 100 / 10],
+             num_HT[BAT % 100], num_HT[minute / 10] + 0x80);
+    }
+    delay(998);
+    break;
+  case 9:
+    _prepareRead(REG_FLAG[1]);
+    CHANGE_NUMER = _bcd2dec(Read_data() & left_FLAG[1]);
+    _end();
+    if (Deadline < CHANGE_NUMER * 60)
+    {
+
+      HT_DIS(num_HT[(CHANGE_NUMER * 60 - Deadline) / 60 / 10],
+             num_HT[(CHANGE_NUMER * 60 - Deadline) / 60 % 10],
+             num_HT[(CHANGE_NUMER * 60 - Deadline) % 60 / 10],
+             num_HT[(CHANGE_NUMER * 60 - Deadline) % 60 % 10] + 0x80);
+    }
+    else
+    {
+      DIS_FLAG = 0;
+    }
+    Deadline += 1;
+    delay(998);
+    break;
+  default:
+    _prepareRead(REG_FLAG[DIS_FLAG]);
+    CHANGE_NUMER = _bcd2dec(Read_data() & left_FLAG[DIS_FLAG]);
+    _end();
+
+    HT_DIS(num_HT[(CHANGE_NUMER * 60 - Deadline) / 60 / 10],
+           num_HT[(CHANGE_NUMER * 60 - Deadline) / 60 % 10],
+           num_HT[(CHANGE_NUMER * 60 - Deadline) % 60 / 10],
+           num_HT[(CHANGE_NUMER * 60 - Deadline) % 60 % 10] + 0x80);
+    delay(99);
+    break;
+  }
 }
