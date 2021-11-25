@@ -301,60 +301,22 @@ void HT_DIS(uint8_t num1, uint8_t num2, uint8_t num3, uint8_t num4)
   digitalWrite(cs_HT, LOW);
   Write_data(0x05, 3);
   Write_addr(0 << 2, 6);
- /* if (digitalRead(Hg))
-  {
-    for (int m = 0; m < 8; m++)
-    {
-      Write_data((num1 & (0x01 << m)) >> m, 4);
-    }
-    for (int m = 0; m < 8; m++)
-    {
-      Write_data((num2 & (0x01 << m)) >> m, 4);
-    }
-    for (int m = 0; m < 8; m++)
-    {
-      Write_data((num3 & (0x01 << m)) >> m, 4);
-    }
-    for (int m = 0; m < 8; m++)
-    {
-      Write_data((num4 & (0x01 << m)) >> m, 4);
-    }
-  }
-  else
-  {
-    for (int m = 0; m < 8; m++)
-    {
-      Write_data(((num4 + 10) & (0x01 << m)) >> m, 4);
-    }
-    for (int m = 0; m < 8; m++)
-    {
-      Write_data(((num3 + 10) & (0x01 << m)) >> m, 4);
-    }
-    for (int m = 0; m < 8; m++)
-    {
-      Write_data(((num2 + 10) & (0x01 << m)) >> m, 4);
-    }
-    for (int m = 0; m < 8; m++)
-    {
-      Write_data(((num1 + 10) & (0x01 << m)) >> m, 4);
-    }
-  }*/
   for (int m = 0; m < 8; m++)
-    {
-      Write_data((num1 & (0x01 << m)) >> m, 4);
-    }
-    for (int m = 0; m < 8; m++)
-    {
-      Write_data((num2 & (0x01 << m)) >> m, 4);
-    }
-    for (int m = 0; m < 8; m++)
-    {
-      Write_data((num3 & (0x01 << m)) >> m, 4);
-    }
-    for (int m = 0; m < 8; m++)
-    {
-      Write_data((num4 & (0x01 << m)) >> m, 4);
-    }
+  {
+    Write_data((num1 & (0x01 << m)) >> m, 4);
+  }
+  for (int m = 0; m < 8; m++)
+  {
+    Write_data((num2 & (0x01 << m)) >> m, 4);
+  }
+  for (int m = 0; m < 8; m++)
+  {
+    Write_data((num3 & (0x01 << m)) >> m, 4);
+  }
+  for (int m = 0; m < 8; m++)
+  {
+    Write_data((num4 & (0x01 << m)) >> m, 4);
+  }
   digitalWrite(cs_HT, HIGH);
 }
 //ADC电量检测
@@ -418,7 +380,7 @@ int DIS_BAT()
 //中断函数
 void PA1_INT()
 {
-  if (DIS_FLAG == 4)
+  if (DIS_FLAG == 9)
   {
     DIS_FLAG = 0;
     Deadline = 0;
@@ -427,7 +389,7 @@ void PA1_INT()
   {
     DIS_FLAG += 1;
   }
-  if (DIS_FLAG == 6)
+  if (DIS_FLAG == 4)
   {
     DIS_FLAG = 0;
   }
@@ -521,12 +483,12 @@ void loop()
            num_HT[minute / 10], num_HT[minute % 10] + (((second % 2) << 7) & 0x80));
     // HT_DIS(0xff,0xff,0xff,0xff);
     if (second == 23)
-        {
-        int BAT = DIS_BAT();
-        HT_DIS(num_HT[BAT / 100] + 0x80, num_HT[BAT % 100 / 10],
-               num_HT[BAT % 100 % 10], 0x0B);
-        delay(2000);
-        }
+    {
+      int BAT = DIS_BAT();
+      HT_DIS(num_HT[BAT / 100] + 0x80, num_HT[BAT % 100 / 10],
+             num_HT[BAT % 100 % 10], 0x0B);
+      delay(2000);
+    }
     //   Serial_println_i(DIS_BAT());
     delay(998);
     break;
@@ -544,6 +506,7 @@ void loop()
     else
     {
       DIS_FLAG = 0;
+      Deadline = 0;
     }
     Deadline += 1;
     delay(998);
