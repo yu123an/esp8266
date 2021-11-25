@@ -94,7 +94,7 @@ uint8_t IMG_FLAG[] = {
   0xFF, 0x36, 0x67, 0x17, 0x5b, 0x5E, 0x6E, 0x54
 };
 uint8_t second, minute, hour, day, mouth, dow, year;
-int debug = 1;
+int debug = 0;
 int Deadline = 0;
 /*
   //TM1650数字字模
@@ -325,7 +325,7 @@ void HT_DIS(uint8_t num1, uint8_t num2, uint8_t num3, uint8_t num4)
 //ADC电量检测
 void ADC_INT()
 {
-  GPIO_Init(GPIOC, GPIO_PIN_4, GPIO_MODE_IN_FL_NO_IT);
+  GPIO_Init(GPIOD, GPIO_PIN_3, GPIO_MODE_IN_FL_NO_IT);
 
   ADC1_DeInit(); //ADC1_CONVERSIONMODE_CONTINUOUS
 
@@ -482,7 +482,7 @@ void loop()
       get_time();
       //显示时间
       HT_DIS(num_HT[hour / 10], num_HT[hour % 10],
-             num_HT[minute / 10], num_HT[minute % 10] + 0x80);
+             num_HT[minute / 10], num_HT[minute % 10] + (((second % 2) << 7) & 0x80));
       // HT_DIS(0xff,0xff,0xff,0xff);
       /*if (second == 23)
         {
@@ -491,6 +491,7 @@ void loop()
                num_HT[BAT % 100], num_HT[minute / 10] + 0x80);
         break;
         }*/
+     //   Serial_println_i(DIS_BAT());
       delay(998);
       break;
     case 9:
