@@ -76,23 +76,21 @@
 #define dat PA2   //PA2
 #define REG_BURST 0xBE
 #define REG_WP 0x8E
+#define Hg PD4 //水银开关
 
 int DIS_FLAG = 0; /*DisPlay Flag*/
 int CHANGE_NUMER;
 uint8_t Light;
 //数组
 uint8_t REG_FLAG[] = {
-  /*8   C     S     F     H     d     y     n*/
-  0xFF, 0xE2, 0x80, 0x82, 0x84, 0x86, 0x88, 0x8C
-};
+    /*8   C     S     F     H     d     y     n*/
+    0xFF, 0xE2, 0x80, 0x82, 0x84, 0x86, 0x88, 0x8C};
 uint8_t left_FLAG[] = {
-  /*8   C     S     F     H     d     y     n*/
-  0xFF, 0xFF, 0x7F, 0x7F, 0x3F, 0x3F, 0x1F, 0x7F
-};
+    /*8   C     S     F     H     d     y     n*/
+    0xFF, 0xFF, 0x7F, 0x7F, 0x3F, 0x3F, 0x1F, 0x7F};
 uint8_t IMG_FLAG[] = {
-  /*8   C     S     F     H     d     y     n*/
-  0xFF, 0x36, 0x67, 0x17, 0x5b, 0x5E, 0x6E, 0x54
-};
+    /*8   C     S     F     H     d     y     n*/
+    0xFF, 0x36, 0x67, 0x17, 0x5b, 0x5E, 0x6E, 0x54};
 uint8_t second, minute, hour, day, mouth, dow, year;
 int debug = 0;
 int Deadline = 0;
@@ -102,14 +100,13 @@ int Deadline = 0;
     //0   1     2     3     4     5     6     7     8     9
     0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F,
     0xBF, 0x86, 0xDB, 0xCF, 0xE6, 0xED, 0xFD, 0x87, 0xFF, 0xEF};
-
   uint8_t num_DIS[] = {
    //0   1     2     3     4     5     6     7     8     9
     0x7e, 0x12, 0xBC, 0xB6, 0xD2, 0xE5, 0xEE, 0x32, 0xFE, 0xF5};
 */
 uint8_t num_HT[] = {
-  0x7E, 0x48, 0x3D, 0x6D, 0x4B, 0x67, 0x77, 0x4C, 0x7F, 0x6F
-};
+    0x7E, 0x48, 0x3D, 0x6D, 0x4B, 0x67, 0x77, 0x4C, 0x7F, 0x6F,
+    0x7E, 0x12, 0x3D, 0x37, 0x53, 0x67, 0x6F, 0x32, 0x7F, 0x77};
 //R&W data
 //统一为从右至左操作
 //按照DS3102的逻辑进行处理
@@ -304,22 +301,60 @@ void HT_DIS(uint8_t num1, uint8_t num2, uint8_t num3, uint8_t num4)
   digitalWrite(cs_HT, LOW);
   Write_data(0x05, 3);
   Write_addr(0 << 2, 6);
-  for (int m = 0; m < 8; m++)
+ /* if (digitalRead(Hg))
   {
-    Write_data((num1 & (0x01 << m)) >> m, 4);
+    for (int m = 0; m < 8; m++)
+    {
+      Write_data((num1 & (0x01 << m)) >> m, 4);
+    }
+    for (int m = 0; m < 8; m++)
+    {
+      Write_data((num2 & (0x01 << m)) >> m, 4);
+    }
+    for (int m = 0; m < 8; m++)
+    {
+      Write_data((num3 & (0x01 << m)) >> m, 4);
+    }
+    for (int m = 0; m < 8; m++)
+    {
+      Write_data((num4 & (0x01 << m)) >> m, 4);
+    }
   }
-  for (int m = 0; m < 8; m++)
+  else
   {
-    Write_data((num2 & (0x01 << m)) >> m, 4);
-  }
+    for (int m = 0; m < 8; m++)
+    {
+      Write_data(((num4 + 10) & (0x01 << m)) >> m, 4);
+    }
+    for (int m = 0; m < 8; m++)
+    {
+      Write_data(((num3 + 10) & (0x01 << m)) >> m, 4);
+    }
+    for (int m = 0; m < 8; m++)
+    {
+      Write_data(((num2 + 10) & (0x01 << m)) >> m, 4);
+    }
+    for (int m = 0; m < 8; m++)
+    {
+      Write_data(((num1 + 10) & (0x01 << m)) >> m, 4);
+    }
+  }*/
   for (int m = 0; m < 8; m++)
-  {
-    Write_data((num3 & (0x01 << m)) >> m, 4);
-  }
-  for (int m = 0; m < 8; m++)
-  {
-    Write_data((num4 & (0x01 << m)) >> m, 4);
-  }
+    {
+      Write_data((num1 & (0x01 << m)) >> m, 4);
+    }
+    for (int m = 0; m < 8; m++)
+    {
+      Write_data((num2 & (0x01 << m)) >> m, 4);
+    }
+    for (int m = 0; m < 8; m++)
+    {
+      Write_data((num3 & (0x01 << m)) >> m, 4);
+    }
+    for (int m = 0; m < 8; m++)
+    {
+      Write_data((num4 & (0x01 << m)) >> m, 4);
+    }
   digitalWrite(cs_HT, HIGH);
 }
 //ADC电量检测
@@ -331,7 +366,7 @@ void ADC_INT()
 
   ADC1_Init(ADC1_CONVERSIONMODE_SINGLE, //单次转换
 
-            ADC1_CHANNEL_2, //通道
+            ADC1_CHANNEL_4, //通道4
 
             ADC1_PRESSEL_FCPU_D4, //预定标器选择 分频器  fMASTER 可以被分频 2 到 18
 
@@ -341,7 +376,7 @@ void ADC_INT()
 
             ADC1_ALIGN_RIGHT, //对齐方式（可以左右对齐）
 
-            ADC1_SCHMITTTRIG_CHANNEL2, //指定触发通道
+            ADC1_SCHMITTTRIG_CHANNEL4, //指定触发通道
 
             ENABLE); //是否使能指定触发通道
 
@@ -376,15 +411,14 @@ int DIS_BAT()
   {
     adc += ADC_GET();
   }
-  //Serial_println_i(adc >> 3);
+  Serial_println_i(adc >> 3);
   return adc >> 3;
 }
 
 //中断函数
 void PA1_INT()
 {
-  if (DIS_FLAG == 4
-  )
+  if (DIS_FLAG == 4)
   {
     DIS_FLAG = 0;
     Deadline = 0;
@@ -468,6 +502,8 @@ void setup()
 {
   DS1302_INT();
   HT1621_INT();
+  pinMode(Hg, INPUT);
+  ADC_INT();
   //DS1302读写测试，平时注释掉即可
   // set_time(0, 55, 11, 2, 11, 5, 19);
   interrupt_int();
@@ -478,50 +514,50 @@ void loop()
 {
   switch (DIS_FLAG)
   {
-    case 0:
-      get_time();
-      //显示时间
-      HT_DIS(num_HT[hour / 10], num_HT[hour % 10],
-             num_HT[minute / 10], num_HT[minute % 10] + (((second % 2) << 7) & 0x80));
-      // HT_DIS(0xff,0xff,0xff,0xff);
-      /*if (second == 23)
+  case 0:
+    get_time();
+    //显示时间
+    HT_DIS(num_HT[hour / 10], num_HT[hour % 10],
+           num_HT[minute / 10], num_HT[minute % 10] + (((second % 2) << 7) & 0x80));
+    // HT_DIS(0xff,0xff,0xff,0xff);
+    if (second == 23)
         {
         int BAT = DIS_BAT();
         HT_DIS(num_HT[BAT / 100] + 0x80, num_HT[BAT % 100 / 10],
-               num_HT[BAT % 100], num_HT[minute / 10] + 0x80);
-        break;
-        }*/
-     //   Serial_println_i(DIS_BAT());
-      delay(998);
-      break;
-    case 9:
-      _prepareRead(REG_FLAG[1]);
-      CHANGE_NUMER = _bcd2dec(Read_data() & left_FLAG[1]);
-      _end();
-      if (Deadline < CHANGE_NUMER * 60)
-      {
-        HT_DIS(num_HT[(CHANGE_NUMER * 60 - Deadline) / 60 / 10],
-               num_HT[(CHANGE_NUMER * 60 - Deadline) / 60 % 10],
-               num_HT[(CHANGE_NUMER * 60 - Deadline) % 60 / 10],
-               num_HT[(CHANGE_NUMER * 60 - Deadline) % 60 % 10] + 0x80);
-      }
-      else
-      {
-        DIS_FLAG = 0;
-      }
-      Deadline += 1;
-      delay(998);
-      break;
-    default:
-      _prepareRead(REG_FLAG[DIS_FLAG]);
-      CHANGE_NUMER = _bcd2dec(Read_data() & left_FLAG[DIS_FLAG]);
-      _end();
-      pinMode(cs_HT, OUTPUT);
-      pinMode(clk, OUTPUT);
-      pinMode(dat, OUTPUT);
-      HT_DIS(IMG_FLAG[DIS_FLAG],0x01,
-             num_HT[CHANGE_NUMER / 10],num_HT[CHANGE_NUMER % 10]);
-      delay(99);
-      break;
+               num_HT[BAT % 100 % 10], 0x0B);
+        delay(2000);
+        }
+    //   Serial_println_i(DIS_BAT());
+    delay(998);
+    break;
+  case 9:
+    _prepareRead(REG_FLAG[1]);
+    CHANGE_NUMER = _bcd2dec(Read_data() & left_FLAG[1]);
+    _end();
+    if (Deadline < CHANGE_NUMER * 60)
+    {
+      HT_DIS(num_HT[(CHANGE_NUMER * 60 - Deadline) / 60 / 10],
+             num_HT[(CHANGE_NUMER * 60 - Deadline) / 60 % 10],
+             num_HT[(CHANGE_NUMER * 60 - Deadline) % 60 / 10],
+             num_HT[(CHANGE_NUMER * 60 - Deadline) % 60 % 10] + 0x80);
+    }
+    else
+    {
+      DIS_FLAG = 0;
+    }
+    Deadline += 1;
+    delay(998);
+    break;
+  default:
+    _prepareRead(REG_FLAG[DIS_FLAG]);
+    CHANGE_NUMER = _bcd2dec(Read_data() & left_FLAG[DIS_FLAG]);
+    _end();
+    pinMode(cs_HT, OUTPUT);
+    pinMode(clk, OUTPUT);
+    pinMode(dat, OUTPUT);
+    HT_DIS(IMG_FLAG[DIS_FLAG], 0x01,
+           num_HT[CHANGE_NUMER / 10], num_HT[CHANGE_NUMER % 10]);
+    delay(99);
+    break;
   }
 }
