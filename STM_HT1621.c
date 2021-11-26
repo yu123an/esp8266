@@ -380,6 +380,7 @@ int DIS_BAT()
 //中断函数
 void PA1_INT()
 {
+  dot();
   if (DIS_FLAG == 9)
   {
     DIS_FLAG = 0;
@@ -389,18 +390,19 @@ void PA1_INT()
   {
     DIS_FLAG += 1;
   }
-  if (DIS_FLAG == 4)
+  if (DIS_FLAG == 5)
   {
     DIS_FLAG = 0;
   }
 }
 void PB5_INT()
 {
-
+  dot();
   DIS_FLAG = 9;
 }
 void PC7_INT()
 {
+  dot();
   _prepareRead(REG_FLAG[DIS_FLAG]);
   CHANGE_NUMER = _bcd2dec(Read_data() & left_FLAG[DIS_FLAG]);
   _end();
@@ -415,6 +417,7 @@ void PC7_INT()
 }
 void PD2_INT()
 {
+  dot();
   _prepareRead(REG_FLAG[DIS_FLAG]);
   CHANGE_NUMER = _bcd2dec(Read_data() & left_FLAG[DIS_FLAG]);
   _end();
@@ -459,7 +462,16 @@ void interrupt_int()
   enableInterrupts();
   attachInterrupt(INT_PORTD & 0xff, PD2_INT, 0);
 }
+void dot()
+{
+  //Write_dataCmd(0x01); //设置蜂鸣器频率为4kHz
+  Write_dataCmd(0x03); //设置蜂鸣器频率为2kHz
 
+  Write_dataCmd(0x48); //开
+  delay(20);
+  Write_dataCmd(0x08); //关
+  delay(3);
+}
 void setup()
 {
   DS1302_INT();
@@ -484,13 +496,15 @@ void loop()
     // HT_DIS(0xff,0xff,0xff,0xff);
     if (second == 23)
     {
+      dot();
       int BAT = DIS_BAT();
       HT_DIS(num_HT[BAT / 100] + 0x80, num_HT[BAT % 100 / 10],
              num_HT[BAT % 100 % 10], 0x0B);
       delay(2000);
     }
     //   Serial_println_i(DIS_BAT());
-    delay(998);
+
+    delay(988);
     break;
   case 9:
     _prepareRead(REG_FLAG[1]);
@@ -509,7 +523,7 @@ void loop()
       Deadline = 0;
     }
     Deadline += 1;
-    delay(998);
+    delay(988);
     break;
   default:
     _prepareRead(REG_FLAG[DIS_FLAG]);
