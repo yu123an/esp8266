@@ -3,7 +3,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <AirGradient.h>
-const char *ssid     = "888888s";
+const char *ssid     = "8888888";
 const char *password = "8888888";
 #define LED 13
 #define SOD A0
@@ -24,21 +24,20 @@ void eror() {
   }
 }
 void setup() {
+  pinMode(LED,OUTPUT);
   Serial.begin(9600);
-  Wire.begin();
-  ag.TMP_RH_Init(0x44);
   WiFi.begin(ssid, password);
   while ( WiFi.status() != WL_CONNECTED ) {
     delay ( 500 );
     Serial.print ( "." );
   }
   timeClient.begin();
+  timeClient.update();
+  hour = timeClient.getHours();
 }
 
 
 void loop() {
-  timeClient.update();
-  hour = timeClient.getHours();
   if (hour > 18 || hour < 6) {
     sound = analogRead(SOD);
     if (sound > Line) {
@@ -47,20 +46,12 @@ void loop() {
       digitalWrite(LED, 0);
     }
     delay(200);
+    Serial.println("!!!");
   } else {
-    for (int i = 0; i < 60; i++) {
+    timeClient.update();
+    hour = timeClient.getHours();
+    for (int i = 0; i < 20; i++) {
       delay(60 * 1000);
-      TMP_RH result = ag.periodicFetchData();
-      if ((result.t) > 35) {
-        //Error
-        eror();
-      }
     }
   }
-  TMP_RH result = ag.periodicFetchData();
-  Serial.print("Humidity: ");
-  Serial.print(result.rh_char);
-  Serial.print(" Temperature: ");
-  Serial.println(result.t_char);
-  delay(5000);
 }
