@@ -3,8 +3,8 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <AirGradient.h>
-const char *ssid     = "888888";
-const char *password = "888888";
+const char *ssid     = "888888s";
+const char *password = "8888888";
 #define LED 13
 #define SOD A0
 #define S_2 14
@@ -15,6 +15,14 @@ int hour;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600 * 8, 60000);
 AirGradient ag = AirGradient();
+void eror() {
+  for (int e = 0; e < 100; e++) {
+    digitalWrite(LED, 1);
+    delay(2000);
+    digitalWrite(LED, 0);
+    delay(2000);
+  }
+}
 void setup() {
   Serial.begin(9600);
   Wire.begin();
@@ -42,9 +50,14 @@ void loop() {
   } else {
     for (int i = 0; i < 60; i++) {
       delay(60 * 1000);
+      TMP_RH result = ag.periodicFetchData();
+      if ((result.t) > 35) {
+        //Error
+        eror();
+      }
     }
   }
-   TMP_RH result = ag.periodicFetchData();
+  TMP_RH result = ag.periodicFetchData();
   Serial.print("Humidity: ");
   Serial.print(result.rh_char);
   Serial.print(" Temperature: ");
