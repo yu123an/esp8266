@@ -2,9 +2,8 @@
 #include <NTPClient.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-#include <AirGradient.h>
-const char *ssid     = "8888888";
-const char *password = "8888888";
+const char *ssid     = "Nexus";
+const char *password = "13033883439";
 #define LED 13
 #define SOD A0
 #define S_2 14
@@ -12,28 +11,32 @@ const char *password = "8888888";
 int sound = 0;
 int Line = 305;
 int hour;
+int L = 1;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600 * 8, 60000);
-AirGradient ag = AirGradient();
-void eror() {
-  for (int e = 0; e < 100; e++) {
-    digitalWrite(LED, 1);
-    delay(2000);
-    digitalWrite(LED, 0);
-    delay(2000);
-  }
-}
 void setup() {
-  pinMode(LED,OUTPUT);
+  pinMode(LED, OUTPUT);
   Serial.begin(9600);
   WiFi.begin(ssid, password);
   while ( WiFi.status() != WL_CONNECTED ) {
+    L = 1 - L;
+    digitalWrite(LED, L);
     delay ( 500 );
     Serial.print ( "." );
   }
+  digitalWrite(LED, 0);
   timeClient.begin();
   timeClient.update();
   hour = timeClient.getHours();
+  Serial.println(timeClient.getFormattedTime());
+  WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("无线终端和接入点的连接已中断");
+  }
+  else
+  {
+    Serial.println("未能成功断开连接！");
+  }
 }
 
 
@@ -52,6 +55,27 @@ void loop() {
     hour = timeClient.getHours();
     for (int i = 0; i < 20; i++) {
       delay(60 * 1000);
+      Serial.println(timeClient.getFormattedTime());
+    }
+    WiFi.begin(ssid, password);
+    while ( WiFi.status() != WL_CONNECTED ) {
+      L = 1 - L;
+      digitalWrite(LED, L);
+      delay ( 500 );
+      Serial.print ( "." );
+    }
+    digitalWrite(LED, 0);
+    timeClient.begin();
+    timeClient.update();
+    hour = timeClient.getHours();
+    Serial.println(timeClient.getFormattedTime());
+    WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("无线终端和接入点的连接已中断");
+    }
+    else
+    {
+      Serial.println("未能成功断开连接！");
     }
   }
 }
