@@ -3,7 +3,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 const char *ssid     = "Nexus";
-const char *password = "13033883439";
+const char *password = "1888888839";
 #define LED 13
 #define SOD A0
 #define S_2 14
