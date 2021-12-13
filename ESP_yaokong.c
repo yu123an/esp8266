@@ -18,17 +18,17 @@
 #include "Adafruit_MQTT_Client.h"
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
-const char *ssid = "N888s";
-const char *password = "88888888";
-const char *mac_ke = "8888888888";
-const char *mac_wo = "88888888";
+const char *ssid = "Nexus";
+const char *password = "188888439";
+const char *mac_ke = "d888888888832";
+const char *mac_wo = "88888888888c";
 #define AIO_SERVER "192.168.2.127"
 #define AIO_SERVERPORT 1883 // use 8883 for SSL
 WiFiClient client;
 //Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, "AIO_USERNAME", "AIO_KEY");
-Adafruit_MQTT_Subscribe onoffbutton = Adafruit_MQTT_Subscribe(&mqtt, "device/ztc1/d888888882/state");
-Adafruit_MQTT_Publish photocell = Adafruit_MQTT_Publish(&mqtt, "device/ztc1/d0b88888888/state");
+Adafruit_MQTT_Subscribe onoffbutton = Adafruit_MQTT_Subscribe(&mqtt, "888888888888888e");
+Adafruit_MQTT_Publish photocell = Adafruit_MQTT_Publish(&mqtt, "88888888888888888");
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600 * 8, 60000); //NTP时钟获取
@@ -49,32 +49,48 @@ NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600 * 8, 60000); //NTP时�
 #define WDTDIS1 0X0A //0b1000 0000 1010  禁止看门狗
 //#define BUFFERSIZE 12
 uint8_t HT_cache[16];
-uint8_t number[] = {
-    0xe0,
-    0x00,
-    0xc2,
-    0x82, //3
-    0x22, //4
-    0xa2,
-    0xe2,
-    0x00,
-    0xe2,
-    0xa2,
-    0x07, //0
-    0x06,
-    0x43,
-    0x47, //3
-    0x46,
-    0x45,
-    0x45,
-    0x07,
-    0x47,
-    0x47,
+uint16_t number[] = {
+    0xe007,
+    0x0006,
+    0xc243,
+    0x8247,
+    0x2246,
+    0xa245,
+    0xe245,
+    0x0007,
+    0xe247,
+    0xa247,
 };
 uint16_t letter[] = {
-    0x0466, 0x8857, 0xe001, 0x8817, 0xe241, 0x6241, 0xe845, 0x6246, 0x8811, 0x4421, 0x62a0, 0xe000, 0x6126, 0x6186, 0xe007, 0x6243, //P
-    0xe087, 0x62a1, 0xa245, 0x0811, 0xe006, 0x6420, 0x6486, 0x05a0, 0x0920, 0x8421};
+    0x0466, //A  0
+    0x8857, //B  1
+    0xe001, //C  2
+    0x8817, //D  3
+    0xe241, //E  4
+    0x6241, //F  5
+    0xe845, //G  6
+    0x6246, //H  7
+    0x8811, //I  8
+    0x4421, //J  9
+    0x62a0, //K  10
+    0xe000, //L  11
+    0x6126, //M  12
+    0x6186, //N  13
+    0xe007, //O  14
+    0x6243, //P  15
+    0xe087, //Q  16
+    0x62a1, //R  17
+    0xa245, //S  18
+    0x0811, //T  19
+    0xe006, //U  20
+    0x6420, //V  21
+    0x6486, //W  22
+    0x05a0, //X  23
+    0x0920, //Y  24
+    0x8421, //Z  25
+};
 int hour;
+int sleeptime = 0;
 uint32_t x = 0;
 //写数据
 void HT1621_Write(uint8_t data, uint8_t Long)
@@ -108,16 +124,17 @@ void HT1621_WriteClkData(uint8_t addr, uint8_t data)
     digitalWrite(cs_p, HIGH);
 }
 //连续地址写数据
-void HT1621_WriteClkData_(uint8_t addr, uint8_t data)
+void HT1621_WriteClkData_(uint8_t addr, uint16_t data)
 {
     addr <<= 2;
     digitalWrite(cs_p, LOW);
     HT1621_Write(0xa0, 3);
-    HT1621_Write(addr, 6);
-    for (int m = 0; m < 8; m++)
-    {
-        HT1621_Write(((data >> m) & 0x01) << 3, 4); //待补充
-    }
+    HT1621_Write(addr * 4, 6);
+    HT1621_Write(data >> 8, 4); //待补充
+    HT1621_Write(data >> 4, 4);
+    HT1621_Write(data, 4);
+    HT1621_Write(data << 4, 4);
+    digitalWrite(cs_p, HIGH);
 }
 // 写指令
 void HT1621_WriteCmd(uint8_t cmd)
@@ -147,15 +164,53 @@ void HT1621_INT()
 }
 //电池电量计算
 
-void DisBat(){
+void DisBat()
+{
     int bat = analogRead(A0);
-    int vote = bat * 247 / 1024 / 47 * 100;
-   
-Serial.print("The bat now is :");
-Serial.println(vote);
-    
+    int vote = bat * 100 * 247 / 1024 / 47;
+    Serial.print("The bat now is :");
+    Serial.println(vote);
+    HT1621_WriteClkData_(0, letter[1]);
+    HT1621_WriteClkData_(1, letter[0]);
+    HT1621_WriteClkData_(2, letter[19]);
+    HT1621_WriteClkData_(3, 0x0240);
+    HT1621_WriteClkData_(4, number[vote / 100] + 0x0008);
+    HT1621_WriteClkData_(5, number[vote % 100 / 10]);
+    HT1621_WriteClkData_(6, number[vote % 10]);
+    HT1621_WriteClkData_(7, letter[21]);
 }
-
+void DisWiFi_()
+{
+    HT1621_WriteClkData_(0, letter[22]);
+    HT1621_WriteClkData_(1, letter[8]);
+    HT1621_WriteClkData_(2, letter[5]);
+    HT1621_WriteClkData_(3, letter[8]);
+    HT1621_WriteClkData_(4, 0x0240);
+    HT1621_WriteClkData_(5, 0x0240);
+    HT1621_WriteClkData_(6, 0x0240);
+    HT1621_WriteClkData_(7, 0x0240);
+}
+void DisWiFi()
+{
+    HT1621_WriteClkData_(0, letter[22]);
+    HT1621_WriteClkData_(1, letter[8]);
+    HT1621_WriteClkData_(2, letter[5]);
+    HT1621_WriteClkData_(3, letter[8]);
+    HT1621_WriteClkData_(4, 0x0240);
+    HT1621_WriteClkData_(5, letter[14]);
+    HT1621_WriteClkData_(6, letter[10]);
+    HT1621_WriteClkData_(7, 0x0);
+}
+void DisSleep(){
+    HT1621_WriteClkData_(0, letter[18]);
+    HT1621_WriteClkData_(1, letter[11]);
+    HT1621_WriteClkData_(2, letter[4]);
+    HT1621_WriteClkData_(3, letter[4]);
+    HT1621_WriteClkData_(4, letter[15]);
+    HT1621_WriteClkData_(5, 0x8000);
+    HT1621_WriteClkData_(6, 0x8000);
+    HT1621_WriteClkData_(7, 0x8000);
+}
 //MQTT操作
 void MQTT_connect()
 {
@@ -198,14 +253,17 @@ ICACHE_RAM_ATTR void talk()
     switch (b)
     {
     case 0x5D:
-        photocell.publish("{\"mac\":\"d888888882\",\"plug_3\":{\"on\":1}}");
+        photocell.publish("{\"mac\":\"88888888888888\",\"plug_3\":{\"on\":1}}");
         break;
     case 0x45:
-        photocell.publish("{\"mac\":\"d888888882\",\"plug_3\":{\"on\":0}}");
+        photocell.publish("{\"mac\":\"88888888888888888888\",\"plug_3\":{\"on\":0}}");
         break;
     default:
         photocell.publish("I am here !!!");
         break;
+        case 0x5E:
+        DisSleep();
+        ESP.deepSleep(3600e6);
     }
     // MQTT_connect();
     //  photocell.publish("I am here !!!");
@@ -222,7 +280,10 @@ void setup()
     {
         delay(500);
         Serial.print(".");
+        DisWiFi_();
     }
+    DisWiFi();
+    delay(500);
     timeClient.begin();
     timeClient.update();
     hour = timeClient.getHours();
@@ -238,9 +299,10 @@ void setup()
 
 void loop()
 {
-DisBat();
+    DisBat();
     MQTT_connect();
-   /* for (int m = 0; m < 26; m++)
+    sleeptime+=1;
+    /* for (int m = 0; m < 26; m++)
     {
 
         for (int a = 0; a < 8; a++)
@@ -279,5 +341,9 @@ DisBat();
     pinMode(13, INPUT);
     attachInterrupt(digitalPinToInterrupt(13), talk, FALLING);
     Serial.println("I am ok !!!");
-    delay(2000);
+    delay(20000);
+    if(sleeptime > 3){
+        DisSleep();
+        ESP.deepSleep(3600e6);
+    }
 }
