@@ -18,17 +18,18 @@
 #include "Adafruit_MQTT_Client.h"
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
-const char *ssid = "Nexus";
-const char *password = "188888439";
-const char *mac_ke = "d888888888832";
-const char *mac_wo = "88888888888c";
-#define AIO_SERVER "192.168.2.127"
-#define AIO_SERVERPORT 1883 // use 8883 for SSL
+const char *ssid = "8888888888888";
+const char *password = "8888888888";
+const char *mac_ke = "888888888888";
+const char *mac_wo = "888888888888";
+#define AIO_SERVER "888888888888888"
+#define AIO_SERVERPORT 88888888888 // use 8883 for SSL
 WiFiClient client;
 //Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, "AIO_USERNAME", "AIO_KEY");
-Adafruit_MQTT_Subscribe onoffbutton = Adafruit_MQTT_Subscribe(&mqtt, "888888888888888e");
-Adafruit_MQTT_Publish photocell = Adafruit_MQTT_Publish(&mqtt, "88888888888888888");
+Adafruit_MQTT_Subscribe onoffbutton = Adafruit_MQTT_Subscribe(&mqtt, "8888888888888");
+Adafruit_MQTT_Publish photocell = Adafruit_MQTT_Publish(&mqtt, "88888888888888");
+Adafruit_MQTT_Publish public_wo = Adafruit_MQTT_Publish(&mqtt, "8888888888888");
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600 * 8, 60000); //NTP时钟获取
@@ -135,6 +136,7 @@ void HT1621_WriteClkData_(uint8_t addr, uint16_t data)
     HT1621_Write(data, 4);
     HT1621_Write(data << 4, 4);
     digitalWrite(cs_p, HIGH);
+    digitalWrite(2, HIGH);
 }
 // 写指令
 void HT1621_WriteCmd(uint8_t cmd)
@@ -168,8 +170,8 @@ void DisBat()
 {
     int bat = analogRead(A0);
     int vote = bat * 100 * 247 / 1024 / 47;
-    Serial.print("The bat now is :");
-    Serial.println(vote);
+    //Serial.print("The bat now is :");
+   // Serial.println(vote);
     HT1621_WriteClkData_(0, letter[1]);
     HT1621_WriteClkData_(1, letter[0]);
     HT1621_WriteClkData_(2, letter[19]);
@@ -201,7 +203,8 @@ void DisWiFi()
     HT1621_WriteClkData_(6, letter[10]);
     HT1621_WriteClkData_(7, 0x0);
 }
-void DisSleep(){
+void DisSleep()
+{
     HT1621_WriteClkData_(0, letter[18]);
     HT1621_WriteClkData_(1, letter[11]);
     HT1621_WriteClkData_(2, letter[4]);
@@ -230,7 +233,10 @@ void MQTT_connect()
         Serial.println(mqtt.connectErrorString(ret));
         Serial.println("Retrying MQTT connection in 5 seconds...");
         mqtt.disconnect();
-        delay(5000); // wait 5 seconds
+        for (int t = 0; t < 5; t++)
+        {
+            delayMicroseconds(5000);
+        } // wait 5 seconds
         retries--;
         if (retries == 0)
         {
@@ -245,23 +251,44 @@ void MQTT_connect()
 //中断时按钮判断函数opke
 ICACHE_RAM_ATTR void talk()
 {
+    MQTT_connect();
     Wire.beginTransmission(0x24);
     Wire.write(0x49);
     Wire.requestFrom(0x24, 1);
     int b = Wire.read();
     Serial.println(b, HEX);
+    HT1621_WriteClkData_(0, 0x0240);
+    HT1621_WriteClkData_(1, 0x0240);
+    HT1621_WriteClkData_(2, number[b >> 4]);
+    HT1621_WriteClkData_(3, letter[b % 16 % 10]);
+    HT1621_WriteClkData_(4, 0x0240);
+    HT1621_WriteClkData_(5, 0x0240);
+    HT1621_WriteClkData_(6, letter[14]);
+    HT1621_WriteClkData_(7, letter[10]);
+    delayMicroseconds(500e3);
+    DisBat();
     switch (b)
     {
     case 0x5D:
-        photocell.publish("{\"mac\":\"88888888888888\",\"plug_3\":{\"on\":1}}");
+    //打开客厅插座开关
+        photocell.publish("{\"mac\":\"888888888888888\",\"plug_0\":{\"on\":1},\"plug_0\":{\"on\":1},\"plug_2\":{\"on\":1}}");
         break;
     case 0x45:
-        photocell.publish("{\"mac\":\"88888888888888888888\",\"plug_3\":{\"on\":0}}");
+    //关闭客厅插座开关
+        photocell.publish("{\"mac\":\"888888888888888\",\"plug_0\":{\"on\":0},\"plug_1\":{\"on\":0},\"plug_2\":{\"on\":0}}");
+        break;
+        case 0x4D:
+        //打开电脑开关
+        public_wo.publish("{\"mac\":\"8888888888888888\",\"plug_1\":{\"on\":1},\"plug_3\":{\"on\":1}}");
+        break;
+        case 0x55:
+        //关闭电脑开关
+        public_wo.publish("{\"mac\":\"888888888888888\",\"plug_1\":{\"on\":0},\"plug_3\":{\"on\":0}}");
         break;
     default:
-        photocell.publish("I am here !!!");
+        public_wo.publish("Nothing");
         break;
-        case 0x5E:
+    case 0x5E:
         DisSleep();
         ESP.deepSleep(3600e6);
     }
@@ -272,7 +299,7 @@ void setup()
 {
 
     Serial.begin(9600);
-    Serial.println("!!!!!!!!!!");
+   // Serial.println("!!!!!!!!!!");
     HT1621_INT();
     digitalWrite(data_p, 1);
     WiFi.begin(ssid, password);
@@ -288,6 +315,7 @@ void setup()
     timeClient.update();
     hour = timeClient.getHours();
     Serial.println(timeClient.getFormattedTime());
+    MQTT_connect();
     mqtt.subscribe(&onoffbutton);
     Wire.begin(5, 4);
     Wire.beginTransmission(0x24);
@@ -300,8 +328,8 @@ void setup()
 void loop()
 {
     DisBat();
-    MQTT_connect();
-    sleeptime+=1;
+    //MQTT_connect();
+    sleeptime += 1;
     /* for (int m = 0; m < 26; m++)
     {
 
@@ -333,17 +361,15 @@ void loop()
     {
         Serial.println("OK!");
     }*/
-
     Wire.begin(5, 4);
     Wire.beginTransmission(0x24);
     Wire.write(0x49);
     Wire.endTransmission();
     pinMode(13, INPUT);
     attachInterrupt(digitalPinToInterrupt(13), talk, FALLING);
-    Serial.println("I am ok !!!");
-    delay(20000);
-    if(sleeptime > 3){
-        DisSleep();
-        ESP.deepSleep(3600e6);
-    }
+  //  Serial.println("I am ok !!!");
+    delay(2000);
+    if(sleeptime > 15){
+    DisSleep();
+    ESP.deepSleep(3600e6);}
 }
