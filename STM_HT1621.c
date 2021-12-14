@@ -481,7 +481,14 @@ void setup()
   //DS1302读写测试，平时注释掉即可
   // set_time(0, 55, 11, 2, 11, 5, 19);
   interrupt_int();
-  Serial_println_s("aaaaaaaaaaaaa");
+ // Serial_println_s("aaaaaaaaaaaaa");
+ _prepareWrite(REG_WP);
+  Write_data(0b00000000,8);
+  _end();
+  _prepareWrite(REG_FLAG[1]);
+  Write_data(_dec2bcd(5),8);
+  Write_data(0b10000000,8);
+  _end();
 }
 
 void loop()
