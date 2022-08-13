@@ -1,0 +1,26 @@
+//Rtc_by_Makuna
+//https://www.arduino.cc/reference/en/libraries/rtc-by-makuna/
+#include <Wire.h> //DS1307
+#include <RtcDS1307.h>
+RtcDS1307<TwoWire> Rtc(Wire);
+int Ds_sec,Ds_min,Ds_hour;
+void setup() {
+  Serial.begin(9600);
+  Rtc.Begin();
+  if (!Rtc.GetIsRunning())
+    {
+        Serial.println("RTC was not actively running, starting now");
+        Rtc.SetIsRunning(true);
+    }
+  Rtc._SetDateTime(12,6,13);
+}
+
+void loop() {
+  RtcDateTime now = Rtc.GetDateTime();
+  Serial.print(now.Hour());
+  Serial.print(":");
+  Serial.print(now.Minute());
+  Serial.print(":");
+  Serial.println(now.Second());
+  delay(2000);
+}
