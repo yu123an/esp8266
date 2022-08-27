@@ -1,5 +1,5 @@
 {
-"Type": "weather",//消息类型，包含：weather，message，gif，
+"Type": "weather",//消息类型，包含：weather，message，gif，warn,class
 “Brightness”：2，亮度调节
 "data": [
 {
