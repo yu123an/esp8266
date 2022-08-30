@@ -33,6 +33,7 @@
 #include <ArduinoJson.h>  //JSON解析
 #include <PubSubClient.h> //MQTT
 #include <Ticker.h>       //定时器
+#include <WiFiManager.h>
 //引脚分配
 #define SCL 22
 #define SDA 21
@@ -43,9 +44,13 @@
 // LOG打印变量
 #define DEBUG 1
 //功能变量
-const char *ssid = "***";
-const char *password = "**";
-const char *mqtt_server = "****";
+//String ssid ;
+//String password ;
+/*
+const char *mqtt_server = "*****";
+const char *ssid = "*****";
+const char *password = "*****";
+*/
 #define LED_NUM 320
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE (20000)
@@ -57,6 +62,18 @@ int Humidity_in, Humidity_out;
 StaticJsonDocument<20000> Mqtt_Sub; // JSON解析缓存
 int light;
 int Sun_rise_hour, Sun_rise_minute, Sun_set_hour, Sun_set_minute;
+/*
+  以下为wifimanager自动配网的相关代码
+  申请512字节大小的EEProm空间，用来存储wifi信息以及和风天气的地区码以及api密钥
+*/
+int wifi_name_len;  //wifi name length
+int wifi_pass_len;   //wifi pass length
+int wifi_name_add = 0;
+int wifi_pass_add = 48;
+String wifi_name;
+String wifi_pass;
+char key[9];
+char local[32];
 // uint8_t sht32_read 0x44;
 //数组变量
 uint8_t OutSide[192];
@@ -196,6 +213,7 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "1.openwrt.pool.ntp.org", 3600 * 8, 60000);
 WiFiClient espClient;
 PubSubClient client(espClient);
+WiFiManager wifimanager;
 Ticker time_update;
 //主函数
 void setup()
@@ -215,6 +233,7 @@ void setup()
   }
   Serial.println('\n');
   Serial.println("Connection established!");
+// get_net();
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());
   client.setServer(mqtt_server, 1383);
@@ -335,7 +354,7 @@ void draw_Xasc(int x, int num, int r, int g, int b)
 }
 void draw_ascii(String str)
 {
-  // WS.clear();
+   WS.clear();
   int n = str.length();
   for (int NN = 0; NN < 4; NN++)
   {
@@ -381,9 +400,19 @@ void callback(char *topic, byte *payload, unsigned int length)
   // JSON文件格式：https://github.com/yu123an/esp8266/blob/master/EPS32/json.log
   //"Type": "weather",//消息类型，包含：weather，message，gif，
   String type = Mqtt_Sub["Type"];
-  if (type == "weather")
+  if (type == "time")
   {
-    Serial.println("weather");
+    Serial.println("准备更新时间");
+    Rtc.Begin(); // DS1307时间读写
+  if (!Rtc.GetIsRunning())
+  {
+    Serial.println("RTC was not actively running, starting now");
+    Rtc.SetIsRunning(true);
+  }
+  int _hour = Mqtt_Sub["hour"];
+  int _minute = Mqtt_Sub["minute"];
+  int _second = Mqtt_Sub["second"];
+    Rtc._SetDateTime( _second, _minute, _hour);
   }
   else if (type == "Temp")
   {
@@ -498,3 +527,39 @@ void New_time()
     Serial.println("Get time failed ....");
   }
 }
+/*void get_net(){
+  int i = 0;
+    ssid = read_eeprom(wifi_name_add, EEPROM.read(46));
+  password = read_eeprom(wifi_pass_add, EEPROM.read(47));
+  int A = ssid.length();
+  int B = password.length();
+  char _ssid[A];
+  char _password[B];
+  ssid.toCharArray(_ssid,A);
+  password.toCharArray(_password,B);
+  WiFi.begin(_ssid, _password);         //联网
+  while ( WiFi.status() != WL_CONNECTED ) {
+    i++;
+    delay ( 500 );
+    Serial.print ( "." );
+    if (i > 40) {                    //60秒后如果还是连接不上，就判定为连接超时
+      Serial.println("");
+      Serial.print("连接超时！请检查网络环境");
+      wifimanager.resetSettings();
+      wifimanager.autoConnect("Esp32");
+      ssid = String(WiFi.SSID());
+      password = String(WiFi.psk());
+      wifi_name_len = ssid.length();
+      wifi_pass_len = password.length();
+      write_eeprom(wifi_name_add, ssid);
+      write_eeprom(wifi_pass_add, password);
+      EEPROM.write(46, wifi_name_len);
+      EEPROM.write(47, wifi_pass_len);
+      EEPROM.commit();
+      break;
+    }
+  } Serial.println("");
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("已联网");
+  }
+}*/
