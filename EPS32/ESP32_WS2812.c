@@ -1,5 +1,10 @@
 /*
   本产品为ESP32驱动的ws2812像素时钟项目
+  为确保能正常使用，请将
+  C:\Users\wangs\Documents\Arduino\libraries\PubSubClient\src\PubSubClient.h
+  修改为
+  #define MQTT_MAX_PACKET_SIZE 5120
+  不然无法正常接收JSON串
   硬件功能支持：
   基于DS1307的时钟基准
   基于SHT30的温湿度传感器
