@@ -33,7 +33,6 @@
 #include <ArduinoJson.h>  //JSON解析
 #include <PubSubClient.h> //MQTT
 #include <Ticker.h>       //定时器
-#include <WiFiManager.h>
 //引脚分配
 #define SCL 22
 #define SDA 21
@@ -53,7 +52,7 @@
 */
 const char *ssid     = "wei xing ban ban gong shi";
 const char *password = "weixing1234+-*/";
-const char *mqtt_server = ".xyz";
+const char *mqtt_server = "*******";
 #define LED_NUM 320
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE (20000)
@@ -204,7 +203,6 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "1.openwrt.pool.ntp.org", 3600 * 8, 60000);
 WiFiClient espClient;
 PubSubClient client(espClient);
-WiFiManager wifimanager;
 Ticker time_update;
 //主函数
 void setup()
@@ -282,6 +280,10 @@ void loop()
   WS.show();
   if (now.Second() == 13)
   {
+    //尝试读写EEPROM
+    //Serial.println("Ready read eeprom");
+    //write_eeprom(2,"abcde");
+    //Serial.println(read_eeprom(2,5));
     //Mqtt_Pub("asddd");
     // if (now.Minute() % 2 ) {
     draw_X(0, Temp_out / 10, color_r, color_g, color_b);
@@ -437,7 +439,17 @@ void callback(char *topic, byte *payload, unsigned int length)
     int _addr = Mqtt_Sub["addr"];
     int _len = Mqtt_Sub["len"];
     String aa = read_eeprom(_addr, _len);
-    Serial.println(aa);
+    String P = "{\"Type\":\"test\",\"data:\"";
+    String Q = "\"}";
+    String ALL = P + aa + Q;
+    char _ALL[80];
+    ALL.toCharArray(_ALL, 80);
+    client.publish("outTopic", _ALL);
+  }
+  else if (type == "findN")
+  {
+    int _addr = Mqtt_Sub["addr"];
+    Serial.println( EEPROM.read(_addr));
   }
   else if (type == "SunTime")
   {
@@ -505,7 +517,7 @@ void reconnect()
 }
 void New_time()
 {
-  client.publish("outTopic", "{\"Type\":\"update\"}");
+  client.publish("outTopic", "{\"Type\":\"time\"}");
 }
 void Mqtt_Pub( String aa) {
   //char pub_msg = "{\"Type\":\"test\"}"
