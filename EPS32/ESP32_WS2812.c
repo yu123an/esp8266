@@ -33,6 +33,7 @@
 #include <ArduinoJson.h>  //JSON解析
 #include <PubSubClient.h> //MQTT
 #include <Ticker.h>       //定时器
+#include "ClosedCube_SHT31D.h" //SHT30
 //引脚分配
 #define SCL 22
 #define SDA 21
@@ -52,7 +53,7 @@
 */
 const char *ssid     = "wei xing ban ban gong shi";
 const char *password = "weixing1234+-*/";
-const char *mqtt_server = "*******";
+const char *mqtt_server = "********";
 #define LED_NUM 320
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE (20000)
@@ -204,6 +205,8 @@ NTPClient timeClient(ntpUDP, "1.openwrt.pool.ntp.org", 3600 * 8, 60000);
 WiFiClient espClient;
 PubSubClient client(espClient);
 Ticker time_update;
+Ticker msg_update;
+ClosedCube_SHT31D sht3xd;
 //主函数
 void setup()
 {
@@ -235,6 +238,9 @@ void setup()
     Serial.println("RTC was not actively running, starting now");
     Rtc.SetIsRunning(true);
   }
+  sht3xd.begin(0x44);
+  if (sht3xd.periodicStart(SHT3XD_REPEATABILITY_HIGH, SHT3XD_FREQUENCY_10HZ) != SHT3XD_NO_ERROR)
+    Serial.println("[ERROR] Cannot start periodic mode");
   if (!client.connected())
   {
     reconnect();
@@ -242,6 +248,7 @@ void setup()
   client.loop();
   client.publish("outTopic", "{\"Type\":\"update\"}");
   time_update.attach(600, New_time);
+  msg_update.attach(3,Pub_msg);
   EEPROM.begin(512);
   light = EEPROM.read(127);
   Sun_rise_hour = EEPROM.read(40);
@@ -254,7 +261,8 @@ void setup()
 
 void loop()
 {
-  RtcDateTime now = Rtc.GetDateTime();
+  RtcDateTime now = Rtc.GetDateTime();\
+  get_sht30("Periodic Mode", sht3xd.periodicFetchData());
   WS.setBrightness(light);
   draw_X(0, now.Hour() / 10, color_r, color_g, color_b);
   draw_X(8, now.Hour() % 10, color_r, color_g, color_b);
@@ -280,12 +288,7 @@ void loop()
   WS.show();
   if (now.Second() == 13)
   {
-    //尝试读写EEPROM
-    //Serial.println("Ready read eeprom");
-    //write_eeprom(2,"abcde");
-    //Serial.println(read_eeprom(2,5));
-    //Mqtt_Pub("asddd");
-    // if (now.Minute() % 2 ) {
+     if (now.Minute() % 2 ) {
     draw_X(0, Temp_out / 10, color_r, color_g, color_b);
     draw_X(8, Temp_out % 10, color_r, color_g, color_b);
     draw_X(24, Humidity_out / 10, color_r, color_g, color_b);
@@ -296,7 +299,18 @@ void loop()
     }
     WS.show();
     delay(5000);
-    // }
+  }else{
+    draw_X(0, Temp_in / 10, color_r, color_g, color_b);
+    draw_X(8, Temp_in % 10, color_r, color_g, color_b);
+    draw_X(24, Humidity_in / 10, color_r, color_g, color_b);
+    draw_X(32, Humidity_in % 10, color_r, color_g, color_b);
+    for (int i = 0; i < 64; i++)
+    {
+      WS.setPixelColor(128 + i, bmp[1][i * 3], bmp[1][i * 3 + 1], bmp[1][i * 3 + 2]);
+    }
+    WS.show();
+    delay(5000);
+  }
   }
   delay(998);
   if (!client.connected())
@@ -527,4 +541,29 @@ void Mqtt_Pub( String aa) {
   char _ALL[80];
   ALL.toCharArray(_ALL, 80);
   client.publish("outTopic", _ALL);
+}
+//获取SHT30温湿度
+void get_sht30(String text, SHT31D result) {
+  if (result.error == SHT3XD_NO_ERROR) {
+    Temp_in = result.t;
+    Humidity_in = result.rh;
+  } else {
+    Serial.print(text);
+    Serial.print(": [ERROR] Code #");
+    Serial.println(result.error);
+  }
+}
+void Pub_msg(){
+  
+  String A = "{\"Type\":\"Msg\",\"Temp\":";
+  String B = ",\"Hump\":";
+  String C = ",\"Time_H\":";
+  String D = ",\"Time_H\":";
+  String E = ",\"Time_M\":";
+  String F = ",\"Light\":";
+  String G = "}";
+  String ALL = A +String(Temp_in) + B + String(Humidity_in) + F + String(light) + G;
+  char _ALL[800];
+  ALL.toCharArray(_ALL, 800);
+  client.publish("out_msg", _ALL);
 }
