@@ -14,33 +14,35 @@
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 #include <PubSubClient.h>
+
 /*
- #define AIO_SERVER "*********"
-#define AIO_SERVERPORT ********* // use 8883 for SSL
-#define AIO_USERNAME "*********" //百度云MQTT用户名
-#define AIO_KEY "*********"     //百度云MQTT用户密码
+  #define AIO_SERVER "*********"
+  #define AIO_SERVERPORT ********* // use 8883 for SSL
+  #define AIO_USERNAME "*********" //百度云MQTT用户名
+  #define AIO_KEY "*********"     //百度云MQTT用户密码
 */
 #define LED 13
 #define debug 1
 WiFiClient client;
 WiFiUDP ntpUDP;
-//MQTT客户端链接
+// MQTT客户端链接
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
-//MQTT消息订阅与发布
-// Setup a feed called 'onoff' for subscribing to changes to the button
-Adafruit_MQTT_Subscribe get_msg = Adafruit_MQTT_Subscribe(&mqtt, "EspHome", MQTT_QOS_1);
-Adafruit_MQTT_Publish Pub_Temp = Adafruit_MQTT_Publish(&mqtt, "_EspHome");
+// MQTT消息订阅与发布
+//  Setup a feed called 'onoff' for subscribing to changes to the button
+Adafruit_MQTT_Subscribe get_msg = Adafruit_MQTT_Subscribe(&mqtt, "EspIn", MQTT_QOS_1);
+Adafruit_MQTT_Publish Pub_Temp = Adafruit_MQTT_Publish(&mqtt, "EspOut");
 ThreeWire myWire(15, 0, 14); // IO, SCLK, CE
 RtcDS1302<ThreeWire> Rtc(myWire);
+Ticker update_msg;
 uint32_t x = 0;
-const char *ssid     = "wei xing ban ban gong shi";
+const char *ssid = "wei xing ban ban gong shi";
 const char *password = "weixing1234+-*/";
 StaticJsonDocument<400> doc;
 StaticJsonDocument<400> web;
 StaticJsonDocument<800> Mqtt_Sub;
 int Sun_rise_hour, Sun_rise_minute, Sun_set_hour, Sun_set_minute;
 int _hour, _minute;
-//MQTT心跳包检测
+// MQTT心跳包检测
 void MQTT_connect()
 {
   int8_t ret;
@@ -92,8 +94,8 @@ void Get_Mqtt(uint32_t x)
   {
     if (debug)
     {
-      //Serial.println("The Sub Topic is :");
-      //Serial.println(*subcription);
+      // Serial.println("The Sub Topic is :");
+      // Serial.println(*subcription);
       Serial.println("I get th msg :");
       Serial.println((char *)get_msg.lastread);
     }
@@ -106,7 +108,7 @@ void Get_Mqtt(uint32_t x)
       int _hour = Mqtt_Sub["hour"];
       int _minute = Mqtt_Sub["minute"];
       int _second = Mqtt_Sub["second"];
-      Rtc.My_SetDateTime( _second, _minute, _hour, 2, 2, 2, 22);
+      Rtc.My_SetDateTime(_second, _minute, _hour, 2, 2, 2, 22);
     }
     else if (type == "SunTime")
     {
@@ -119,7 +121,23 @@ void Get_Mqtt(uint32_t x)
       EEPROM.write(2, Sun_set_hour);
       EEPROM.write(3, Sun_set_minute);
       EEPROM.commit();
-    } else {
+    }
+    else if (type == "Light")
+    {
+      Serial.println("Ready to open led");
+      if (Mqtt_Sub["light"] == 1)
+      {
+        digitalWrite(LED, 1);
+        Serial.println("open led");
+      }
+      else
+      {
+        digitalWrite(LED, 0);
+        Serial.println("close led");
+      }
+    }
+    else
+    {
       Serial.println("Nothing");
     }
   }
@@ -155,21 +173,45 @@ void setup()
     Serial.println("RTC was write protected, enabling writing now");
     Rtc.SetIsWriteProtected(false);
   }
+  update_msg.attach(5,out_msg);
 }
 void loop()
 {
   RtcDateTime now = Rtc.GetDateTime();
+  if ((now.Hour() == Sun_rise_hour) && (now.Minute() == Sun_rise_minute))
+  {
+    Serial.println("准备开灯");
+    digitalWrite(LED, 1);
+    for (int i = 0; i < 61; i++)
+    {
+      delay(1000);
+    }
+  }
+  else if ((now.Hour() == Sun_set_hour) && (now.Minute() == Sun_set_minute))
+  {
+    Serial.println("准备关灯");
+    digitalWrite(LED, 0);
+    for (int i = 0; i < 61; i++)
+    {
+      delay(1000);
+    }
+  }
+  else
+  {
+    Serial.println("Nothing happen");
+  }
   Serial.println("I am ok !!!");
   MQTT_connect();
-  //mqtt.subscribe(&get_msg);
+  // mqtt.subscribe(&get_msg);
   Get_Mqtt(3);
   delay(998);
-  Serial.print("Now is :");
-  Serial.print(now.Hour());
-  Serial.print(" :");
-  Serial.print(now.Minute());
-  Serial.print(" :");
-  Serial.print(now.Second());
-  Serial.println(" ");
   get_temp();
+}
+void out_msg(){
+  String pubA = "{\"Temp\":";
+    String pubB = ",\"light\":";
+    String pub2 = pubA + get_temp() + pubB + digitalRead(LED) + "}";
+    char pubb[200];
+    pub2.toCharArray(pubb, 200);
+    Pub_Temp.publish(pubb);
 }
