@@ -51,9 +51,6 @@
   const char *ssid = "*****";
   const char *password = "*****";
 */
-const char *ssid     = "wei xing ban ban gong shi";
-const char *password = "weixing1234+-*/";
-const char *mqtt_server = "********";
 #define LED_NUM 320
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE (20000)
@@ -248,7 +245,7 @@ void setup()
   client.loop();
   client.publish("outTopic", "{\"Type\":\"update\"}");
   time_update.attach(600, New_time);
-  msg_update.attach(3,Pub_msg);
+  msg_update.attach(3, Pub_msg);
   EEPROM.begin(512);
   light = EEPROM.read(127);
   Sun_rise_hour = EEPROM.read(40);
@@ -261,7 +258,7 @@ void setup()
 
 void loop()
 {
-  RtcDateTime now = Rtc.GetDateTime();\
+  RtcDateTime now = Rtc.GetDateTime();
   get_sht30("Periodic Mode", sht3xd.periodicFetchData());
   WS.setBrightness(light);
   draw_X(0, now.Hour() / 10, color_r, color_g, color_b);
@@ -288,29 +285,29 @@ void loop()
   WS.show();
   if (now.Second() == 13)
   {
-     if (now.Minute() % 2 ) {
-    draw_X(0, Temp_out / 10, color_r, color_g, color_b);
-    draw_X(8, Temp_out % 10, color_r, color_g, color_b);
-    draw_X(24, Humidity_out / 10, color_r, color_g, color_b);
-    draw_X(32, Humidity_out % 10, color_r, color_g, color_b);
-    for (int i = 0; i < 64; i++)
-    {
-      WS.setPixelColor(128 + i, OutSide[i * 3], OutSide[i * 3 + 1], OutSide[i * 3 + 2]);
+    if (now.Minute() % 2 ) {
+      draw_X(0, Temp_out / 10, color_r, color_g, color_b);
+      draw_X(8, Temp_out % 10, color_r, color_g, color_b);
+      draw_X(24, Humidity_out / 10, color_r, color_g, color_b);
+      draw_X(32, Humidity_out % 10, color_r, color_g, color_b);
+      for (int i = 0; i < 64; i++)
+      {
+        WS.setPixelColor(128 + i, OutSide[i * 3], OutSide[i * 3 + 1], OutSide[i * 3 + 2]);
+      }
+      WS.show();
+      delay(5000);
+    } else {
+      draw_X(0, Temp_in / 10, color_r, color_g, color_b);
+      draw_X(8, Temp_in % 10, color_r, color_g, color_b);
+      draw_X(24, Humidity_in / 10, color_r, color_g, color_b);
+      draw_X(32, Humidity_in % 10, color_r, color_g, color_b);
+      for (int i = 0; i < 64; i++)
+      {
+        WS.setPixelColor(128 + i, bmp[1][i * 3], bmp[1][i * 3 + 1], bmp[1][i * 3 + 2]);
+      }
+      WS.show();
+      delay(5000);
     }
-    WS.show();
-    delay(5000);
-  }else{
-    draw_X(0, Temp_in / 10, color_r, color_g, color_b);
-    draw_X(8, Temp_in % 10, color_r, color_g, color_b);
-    draw_X(24, Humidity_in / 10, color_r, color_g, color_b);
-    draw_X(32, Humidity_in % 10, color_r, color_g, color_b);
-    for (int i = 0; i < 64; i++)
-    {
-      WS.setPixelColor(128 + i, bmp[1][i * 3], bmp[1][i * 3 + 1], bmp[1][i * 3 + 2]);
-    }
-    WS.show();
-    delay(5000);
-  }
   }
   delay(998);
   if (!client.connected())
@@ -553,16 +550,22 @@ void get_sht30(String text, SHT31D result) {
     Serial.println(result.error);
   }
 }
-void Pub_msg(){
-  
+void Pub_msg() {
+  RtcDateTime now = Rtc.GetDateTime();
   String A = "{\"Type\":\"Msg\",\"Temp\":";
   String B = ",\"Hump\":";
-  String C = ",\"Time_H\":";
-  String D = ",\"Time_H\":";
-  String E = ",\"Time_M\":";
+  String C = ",\"Time\":";
   String F = ",\"Light\":";
+  String E = ",\"rise_time\":";
+  String H = ",\"set_time\":";
+  String I = ":";
   String G = "}";
-  String ALL = A +String(Temp_in) + B + String(Humidity_in) + F + String(light) + G;
+  String ALL = A + String(Temp_in) +
+               B + String(Humidity_in) +
+               C + String(now.Hour()) + I + String(now.Minute()) +
+               E + String(Sun_rise_hour) + I + String(Sun_rise_minute) +
+               H + String(Sun_set_hour) + I + String(Sun_set_minute) +
+               F  + String(light) + G;
   char _ALL[800];
   ALL.toCharArray(_ALL, 800);
   client.publish("out_msg", _ALL);
