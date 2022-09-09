@@ -51,6 +51,11 @@
   const char *ssid = "*****";
   const char *password = "*****";
 */
+  const char *mqtt_server = "*****";
+  const char *ssid = "*****";
+  const char *password = "*****";
+  const char *ssid_ = "*****";
+  const char *password_ = "*****";
 #define LED_NUM 320
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE (20000)
@@ -62,6 +67,7 @@ int Humidity_in, Humidity_out;
 StaticJsonDocument<20000> Mqtt_Sub; // JSON解析缓存
 int light;
 int Sun_rise_hour, Sun_rise_minute, Sun_set_hour, Sun_set_minute;
+int i = 0;
 // uint8_t sht32_read 0x44;
 //数组变量
 uint8_t OutSide[192];
@@ -212,16 +218,33 @@ void setup()
 #endif
   WS.begin(); // WS2812驱动使能
   Serial.begin(9600);
-  WiFi.begin(ssid, password); // 连接网络
-  Serial.print("Connecting to ");
-  Serial.print(ssid);
+  WiFi.begin(ssid_, password_); // 连接网络
   while (WiFi.status() != WL_CONNECTED)
   { // 等待连接
     delay(500);
     Serial.print('.');
+    i++;
+    if (i == 40) {
+      break;
+      Serial.println("Failed to connect network");
+    }
+  }
+  i = 0;
+  WiFi.begin(ssid, password); // 连接网络
+  while (WiFi.status() != WL_CONNECTED)
+  { // 等待连接
+    delay(500);
+    Serial.print('.');
+    i++;
+    if (i == 40) {
+      break;
+      Serial.println("Failed to connect network");
+    }
   }
   Serial.println('\n');
-  Serial.println("Connection established!");
+  Serial.print("Connecting to ");
+  Serial.print(ssid);
+  //  draw_ascii(WiFi.ssid());
   // get_net();
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());
