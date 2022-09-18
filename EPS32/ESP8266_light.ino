@@ -15,6 +15,7 @@
 //编码器引脚
 #define ROTARY_ENCODER_A_PIN 12
 #define ROTARY_ENCODER_B_PIN 14
+#define ROTARY_ENCODER_BUTTON_PIN 13
 #define ROTARY_ENCODER_VCC_PIN -1
 #define ROTARY_ENCODER_STEPS 4
 //变量声明
@@ -24,7 +25,8 @@ int ColorTempWhite = 127;
 int ColorTempYellow = 128;
 int WhiteBrightness = 127;
 int YellowBrightness = 128;
-#define ROTARY_ENCODER_BUTTON_PIN 13
+int LastLedBrightness;
+int LastColorTempWhite;
 //联网标志位
 int WiFiFlag;
 //实例对象
@@ -33,7 +35,7 @@ Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 Ticker ticker;
 void IRAM_ATTR readEncoderISR()
 {
-  rotaryEncoder.readEncoder_ISR();
+	rotaryEncoder.readEncoder_ISR();
 }
 void setup()
 {
@@ -61,9 +63,10 @@ void setup()
 	rotaryEncoder.setBoundaries(0, 255, circleValues); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
 	rotaryEncoder.setAcceleration(250);				   // or set the value - larger number = more accelearation; 0 or 1 means disabled acceleration
 	analogWriteFreq(10000);							   // 10KHZ
+	rotaryEncoder.setEncoderValue(127);
 	analogWrite(WhiteLed, 0);
 	analogWrite(YellowLed, 0);
-	ticker.attach_ms(500,rotary_loop);
+	ticker.attach_ms(500, rotary_loop);
 }
 
 void loop()
@@ -84,6 +87,15 @@ void rotary_onButtonClick()
 	Serial.print(millis());
 	Serial.println(" milliseconds after restart");
 	ButtonFlag -= 1;
+	if (ButtonFlag)
+	{
+		//调节亮度
+		rotaryEncoder.setEncoderValue(LastLedBrightness);
+	}
+	else
+	{
+		rotaryEncoder.setEncoderValue(LastColorTempWhite);
+	}
 }
 void rotary_loop()
 {
@@ -95,11 +107,13 @@ void rotary_loop()
 		if (ButtonFlag)
 		{ //调节亮度
 			LedBrightness = rotaryEncoder.readEncoder();
+			LastLedBrightness = rotaryEncoder.readEncoder();
 		}
 		else
 		{ //调节色温
 			ColorTempWhite = rotaryEncoder.readEncoder();
 			ColorTempYellow = 255 - ColorTempWhite;
+			LastColorTempWhite = rotaryEncoder.readEncoder();
 		}
 		WhiteBrightness = LedBrightness * ColorTempWhite >> 8;
 		YellowBrightness = LedBrightness * ColorTempYellow >> 8;
