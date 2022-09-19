@@ -12,7 +12,7 @@
 //敏感信息
 const char *ssid = "wei xing ban ban gong shi";
 const char *password = "weixing1234+-*/";
-const char *mqtt_server = "********";
+const char *mqtt_server = "*********";
 //信息缓存
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE (20000)
@@ -205,10 +205,19 @@ void callback(char *topic, byte *payload, unsigned int length)
 	if (type == "Light")
 	{
 		LedBrightness = Mqtt_Sub["LedBrightness"];
+		LastLedBrightness = LedBrightness;
+		rotaryEncoder.setEncoderValue(LastLedBrightness);
+		WhiteBrightness = LedBrightness * ColorTempWhite >> 8;
+		YellowBrightness = LedBrightness * ColorTempYellow >> 8;
+		analogWrite(WhiteLed, WhiteBrightness);
+		analogWrite(YellowLed, YellowBrightness);
+	}
+	else if (type == "ColorTemp")
+	{
 		ColorTempWhite = Mqtt_Sub["ColorTempWhite"];
 		ColorTempYellow = 255 - ColorTempWhite;
-		LastLedBrightness = LedBrightness;
 		LastColorTempWhite = ColorTempWhite;
+		rotaryEncoder.setEncoderValue(LastColorTempWhite);
 		WhiteBrightness = LedBrightness * ColorTempWhite >> 8;
 		YellowBrightness = LedBrightness * ColorTempYellow >> 8;
 		analogWrite(WhiteLed, WhiteBrightness);
@@ -249,8 +258,8 @@ void Pub_msg()
 	String C = ",\"YellowBrightness\":";
 	String G = "}";
 	String ALL = A + String(LedBrightness) +
-				 B + String(WhiteBrightness) +
-				 C + String(YellowBrightness) + G;
+				 B + String(ColorTempWhite) +
+				 C + String(ColorTempWhiteYellow) + G;
 	char _ALL[800];
 	ALL.toCharArray(_ALL, 800);
 	client.publish("LightOut", _ALL);
