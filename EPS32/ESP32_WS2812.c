@@ -37,7 +37,7 @@
 //引脚分配
 #define SCL 22
 #define SDA 21
-#define LED 23
+#define LED 27
 #define LIG 32
 #define VOICE 25
 #define EN_V 17
@@ -51,11 +51,7 @@
   const char *ssid = "*****";
   const char *password = "*****";
 */
-  const char *mqtt_server = "*****";
-  const char *ssid = "*****";
-  const char *password = "*****";
-  const char *ssid_ = "*****";
-  const char *password_ = "*****";
+
 #define LED_NUM 320
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE (20000)
@@ -67,7 +63,6 @@ int Humidity_in, Humidity_out;
 StaticJsonDocument<20000> Mqtt_Sub; // JSON解析缓存
 int light;
 int Sun_rise_hour, Sun_rise_minute, Sun_set_hour, Sun_set_minute;
-int i = 0;
 // uint8_t sht32_read 0x44;
 //数组变量
 uint8_t OutSide[192];
@@ -210,41 +205,26 @@ PubSubClient client(espClient);
 Ticker time_update;
 Ticker msg_update;
 ClosedCube_SHT31D sht3xd;
+
 //主函数
 void setup()
 {
 #if defined(__AVR_ATtiny85__) && (F_CPU == 16000000)
   clock_prescale_set(clock_div_1);
 #endif
+
   WS.begin(); // WS2812驱动使能
   Serial.begin(9600);
-  WiFi.begin(ssid_, password_); // 连接网络
-  while (WiFi.status() != WL_CONNECTED)
-  { // 等待连接
-    delay(500);
-    Serial.print('.');
-    i++;
-    if (i == 40) {
-      break;
-      Serial.println("Failed to connect network");
-    }
-  }
-  i = 0;
   WiFi.begin(ssid, password); // 连接网络
-  while (WiFi.status() != WL_CONNECTED)
-  { // 等待连接
-    delay(500);
-    Serial.print('.');
-    i++;
-    if (i == 40) {
-      break;
-      Serial.println("Failed to connect network");
-    }
-  }
-  Serial.println('\n');
   Serial.print("Connecting to ");
   Serial.print(ssid);
-  //  draw_ascii(WiFi.ssid());
+  while (WiFi.status() != WL_CONNECTED)
+  { // 等待连接
+    delay(500);
+    Serial.print('.');
+  }
+  Serial.println('\n');
+  Serial.println("Connection established!");
   // get_net();
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());
@@ -386,9 +366,9 @@ void draw_ascii(String str)
   int n = str.length();
   for (int NN = 0; NN < 4; NN++)
   {
-    WS.clear();
     for (int N = 0; N < 8 * n; N++)
     {
+    WS.clear();
       for (int len = 0; len < n; len++)
       {
         draw_Xasc(8 * len + 40 - N, (str[len]) - ' ', 208, 16, 76);
