@@ -12,12 +12,12 @@
 #include <RtcDS1302.h>
 #include <PubSubClient.h>
 //敏感信息
-const char *mqtt_server = "*********";
-const char *ssid = "wei xing ban ban gong shi";
-const char *password = "weixing1234+-*/";
-//LED使能引脚
+const char *mqtt_server = "c-----------";
+const char *ssid = "------";
+const char *password = "-----------";
+// LED使能引脚
 #define LED 13
-//LOG打印标志位
+// LOG打印标志位
 #define debug 1
 //实例化类
 WiFiClient espClient;
@@ -29,6 +29,7 @@ StaticJsonDocument<800> Mqtt_Sub;
 //变量声明
 int Sun_rise_hour, Sun_rise_minute, Sun_set_hour, Sun_set_minute;
 int _hour, _minute;
+int LedFlag = 0;
 //读取温度
 int get_temp()
 {
@@ -57,6 +58,7 @@ void Get_Net()
 }
 void setup()
 {
+  pinMode(LED,OUTPUT);
   Serial.begin(9600);
   //申请EEPROM读写空间
   EEPROM.begin(64);
@@ -73,7 +75,7 @@ void setup()
   }
   //定时任务，每隔5s发布信息
   update_msg.attach(5, Pub_msg);
-  //MQTT，指定服务器，回调函数，重连操作
+  // MQTT，指定服务器，回调函数，重连操作
   client.setServer(mqtt_server, 1383);
   client.setCallback(callback);
   if (!client.connected())
@@ -81,10 +83,14 @@ void setup()
     reconnect();
   }
   client.loop();
+  Sun_rise_hour = EEPROM.read(0);
+  Sun_rise_minute = EEPROM.read(1);
+  Sun_set_hour = EEPROM.read(2);
+  Sun_set_minute = EEPROM.read(3);
 }
 void loop()
 {
-   //MQTT心跳检测
+  // MQTT心跳检测
   if (!client.connected())
   {
     reconnect();
@@ -125,24 +131,27 @@ void callback(char *topic, byte *payload, unsigned int length)
   }
   else if (type == "Light")
   {
-    Serial.println("Ready to open led");
+    Serial.println("Ready to change led");
     if (Mqtt_Sub["light"] == 1)
     {
       digitalWrite(LED, 1);
       Serial.println("open led");
+      LedFlag = 1;
     }
     else
     {
       digitalWrite(LED, 0);
       Serial.println("close led");
+      LedFlag = 0;
     }
   }
-  else if (type == "Light")
+  else if (type == "LightPwm")
   {
     digitalWrite(LED, 0);
     // pwm频率
     analogWriteFreq(10000); // 10KHZ
     analogWrite(LED, Mqtt_Sub["PWM"]);
+    LedFlag = 1;
   }
   else
   {
@@ -176,12 +185,22 @@ void reconnect()
     }
   }
 }
- //定时发布信息
+//定时发布信息
 void Pub_msg()
 {
+  RtcDateTime now = Rtc.GetDateTime();
   String A = "{\"Temp\":";
   String B = ",\"light\":";
-  String ALL = A + get_temp() + B + digitalRead(LED) + "}";
+  String C = ",\"Time\":\"";
+  String D = "\",\"rise_time\":\"";
+  String E = "\",\"set_time\":\"";
+  String I = ":";
+  String ALL =
+      A + get_temp() +
+      B + LedFlag +
+      C + String(now.Hour()) + I + String(now.Minute()) +
+      D + String(Sun_rise_hour) + I + String(Sun_rise_minute) +
+      E + String(Sun_set_hour) + I + String(Sun_set_minute) + "\"}";
   char _ALL[800];
   ALL.toCharArray(_ALL, 800);
   client.publish("EspOut", _ALL);
