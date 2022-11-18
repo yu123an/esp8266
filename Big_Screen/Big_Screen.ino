@@ -13,7 +13,7 @@
 #include <WiFiClientSecure.h> //https请求
 #include "OneButton.h"        //按钮启用
 #include <Ticker.h>           //定时任务
-#include <JPEGDecoder.h>
+#include <JPEGDecoder.h>//加载jpg图片
 // SD卡读写
 #include "FS.h"
 #include "SD.h"
@@ -26,10 +26,11 @@
 //定义字体
 #define Digi &DS_DIGI32pt7b         // 数码管字体
 #define DejaVu &DejaVu_Sans_Mono_20 //等宽字体
+#define PAPL &PAPL_125pt7b //等宽数字
 String shici;                       //古诗词api返回诗句
 String weak = "Double" /*Double or Single*/;
 String temp, hump, windDir, wind, _weather, _date;
-int _day, _hour, _minute,_second;
+int _day, _hour, _minute, _second;
 // 特殊引脚
 #define WeakFlag 13//周选择
 #define sdSelectPin 25//sd卡
@@ -41,6 +42,7 @@ char msg[MSG_BUFFER_SIZE];
 StaticJsonDocument<20000> Mqtt_Sub; // JSON解析缓存
 // 实例化类
 TFT_eSPI tft = TFT_eSPI();
+#include "support_functions.h"//加载png图片
 WiFiUDP ntpUDP;
 WiFiClientSecure espClient;
 NTPClient timeClient(ntpUDP, "ntp2.aliyun.com", 8 * 3600, 60000);
@@ -89,7 +91,7 @@ void setup()
   }
   drawClass();
   time_update();
-  uptime.attach(600,time_update);
+  uptime.attach(600, time_update);
 }
 
 void loop()
@@ -114,19 +116,26 @@ void time_update()
   _hour = timeClient.getHours();
   _minute = timeClient.getMinutes();
   _second = timeClient.getSeconds();
-   Rtc._SetDateTime(_second, _minute, _hour);
+  Rtc._SetDateTime(_second, _minute, _hour);
 }
-void drawTime(){
+void drawTime() {
   Rtc.Begin();  // DS1307时间读写
   if (!Rtc.GetIsRunning()) {
     Serial.println("RTC was not actively running, starting now");
     Rtc.SetIsRunning(true);
   }
   RtcDateTime now = Rtc.GetDateTime();
- tft.setTextColor(c_time);
- tft.setFreeFont(Digi);
- tft.fillRect(10, 78, 216, 64, c_BL);
- tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 12, 80);
+  //tft.setTextColor(c_time,c_BL,1);
+  tft.setFreeFont(PAPL);
+  tft.setTextColor(c_time);
+  tft.fillRect(175, 78, 65, 45, c_BL);
+  if (now.Second() == 0) {
+    tft.fillRect(95, 78, 65, 45, c_BL);
+    if (now.Minute() == 0) {
+      tft.fillRect(05, 78, 75, 45, c_BL);
+    }
+  }
+  tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 12, 80);
 }
 // http请求
 void get_net(String web)
@@ -204,7 +213,10 @@ void drawClass()
   tft.setTextColor(c_BL);
   tft.setTextColor(c_text);
   tft.drawString(_Day + " A1 A2 A3 A4 B1 B2 B3 B4 C1 C2 C3", 12, 35);
-  drawSdJpeg(("/weather_jpg/" + _icon + ".jpg").c_str(), 0, 120);
+  drawSdJpeg(("/128/" + _icon + ".png.jpg").c_str(), 0, 120);
+  //setPngPosition(0,120);
+  //load_file(SD, ("/weather_jpg/" + _icon + ".png").c_str());
+  //load_file(SD, "/64/100.png");
   for (int i = 0; i < 11; i++)
   {
     tft.drawLine(26 + 12 + 6 + 39 * i, 35, 26 + 12 + 6 + 39 * i, 70, c_Line);
@@ -225,6 +237,8 @@ void drawClass()
   tft.setTextColor(c_BL);
   tft.drawString(_date + temp + hump + wind, 12, 5);
   time_update();
+  //setPngPosition(180,20);
+  // load_png(map_http.c_str());
 }
 void sd_en() {
   if (!SD.begin(sdSelectPin)) {
