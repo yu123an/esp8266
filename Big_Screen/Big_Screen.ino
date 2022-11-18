@@ -240,8 +240,8 @@ void drawClass()
   tft.drawString(_date + temp + hump + wind, 12, 5);
    tft.setTextColor(c_text);
    //需要下调
-  tft.drawString(temp, 180, 128);
-   tft.drawString(hump, 180, 192);
+  tft.drawString(temp, 180, 144);
+   tft.drawString(hump, 180, 208);
   time_update();
   //setPngPosition(180,20);
   // load_png(map_http.c_str());
