@@ -91,7 +91,7 @@ void setup()
   }
   drawClass();
   time_update();
-  uptime.attach(600, time_update);
+  uptime.attach(600, drawClass);
 }
 
 void loop()
@@ -214,6 +214,8 @@ void drawClass()
   tft.setTextColor(c_text);
   tft.drawString(_Day + " A1 A2 A3 A4 B1 B2 B3 B4 C1 C2 C3", 12, 35);
   drawSdJpeg(("/128/" + _icon + ".png.jpg").c_str(), 0, 120);
+  drawSdJpeg("/128/temp.jpg", 130, 128);
+  drawSdJpeg("/128/humt.jpg", 130, 192);
   //setPngPosition(0,120);
   //load_file(SD, ("/weather_jpg/" + _icon + ".png").c_str());
   //load_file(SD, "/64/100.png");
