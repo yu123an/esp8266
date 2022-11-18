@@ -234,10 +234,14 @@ void drawClass()
   {
     CL = Mqtt_Sub["Double"][_day]["no"].as<String>();
   }
-  tft.drawString(CL, 12, 57);
   tft.setFreeFont(DejaVu);
+  tft.drawString(CL, 12, 57);
   tft.setTextColor(c_BL);
   tft.drawString(_date + temp + hump + wind, 12, 5);
+   tft.setTextColor(c_text);
+   //需要下调
+  tft.drawString(temp, 180, 128);
+   tft.drawString(hump, 180, 192);
   time_update();
   //setPngPosition(180,20);
   // load_png(map_http.c_str());
