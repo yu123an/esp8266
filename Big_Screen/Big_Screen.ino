@@ -14,6 +14,10 @@
 #include "OneButton.h"        //按钮启用
 #include <Ticker.h>           //定时任务
 #include <JPEGDecoder.h>//加载jpg图片
+#include <EEPROM.h>   // 片上EEPROM
+#include "Adafruit_EEPROM_I2C.h"  //外置EEProm
+#include "Adafruit_FRAM_I2C.h"
+#include <PubSubClient.h>         //MQTT
 // SD卡读写
 #include "FS.h"
 #include "SD.h"
@@ -27,16 +31,22 @@
 #define Digi &DS_DIGI32pt7b         // 数码管字体
 #define DejaVu &DejaVu_Sans_Mono_20 //等宽字体
 #define PAPL &PAPL_125pt7b //等宽数字
+//String fontname = "siyuan20";  //思源宋体
+String fontname = "fangzheng20";  //方正幼黑
+//EEPROM地址
+#define EEPROM_ADDR 0x50
 String shici;                       //古诗词api返回诗句
-String weak = "Double" /*Double or Single*/;
 String temp, hump, windDir, wind, _weather, _date;
 int _day, _hour, _minute, _second;
+unsigned long lastMsg = 0;
+int value = 0;
 // 特殊引脚
 #define WeakFlag 13//周选择
 #define sdSelectPin 25//sd卡
 #define SCL 22
 #define SDA 21
 // json串解析
+String JsonMsg;
 #define MSG_BUFFER_SIZE (20000)
 char msg[MSG_BUFFER_SIZE];
 StaticJsonDocument<20000> Mqtt_Sub; // JSON解析缓存
@@ -45,6 +55,7 @@ TFT_eSPI tft = TFT_eSPI();
 #include "support_functions.h"//加载png图片
 WiFiUDP ntpUDP;
 WiFiClientSecure espClient;
+PubSubClient client(espClient);
 NTPClient timeClient(ntpUDP, "ntp2.aliyun.com", 8 * 3600, 60000);
 RtcDS1307<TwoWire> Rtc(Wire);
 OneButton Buton1(34, 1, 0);
@@ -61,6 +72,8 @@ void setup()
   tft.begin();
   tft.setRotation(1);
   tft.fillScreen(c_BL);
+  //  tft.loadFont(fontname, SD);//加载字体
+  //  tft.unloadFont();//卸载字体
   tft.setTextColor(c_time);
   tft.setFreeFont(Digi);
   tft.drawString("Chwhsn", 50, 60);
@@ -92,6 +105,11 @@ void setup()
   drawClass();
   time_update();
   uptime.attach(600, drawClass);
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+  client.publish((MqttPubName).c_str(), "{\"Type\":\"update\"}");
 }
 
 void loop()
@@ -105,7 +123,11 @@ void loop()
   //   delay(60 * 1000);
   // }
   drawTime();
-  delay(1000);
+  delay(980);
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
 }
 // 更新时间
 void time_update()
@@ -138,7 +160,7 @@ void drawTime() {
   tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 12, 80);
 }
 // http请求
-void get_net(String web)
+void get_net(String web,bool isdecode)
 {
   HTTPClient http;
   if (http.begin(web))
@@ -151,7 +173,10 @@ void get_net(String web)
     if (httpCode == HTTP_CODE_OK)
     {
       String payload = http.getString();
-      deserializeJson(Mqtt_Sub, payload);
+      if(isdecode){
+      deserializeJson(Mqtt_Sub, payload);}else{
+        JsonMsg = payload;
+      }
     }
   }
   else
@@ -197,7 +222,8 @@ void Scan_WiFi()
 // 绘制课表
 void drawClass()
 {
-  get_net(web_hf);
+  sd_en();
+  get_net(web_hf,1);
   // 处理http返回信息
   temp = Mqtt_Sub["now"]["temp"].as<String>() + "°C ";
   hump = Mqtt_Sub["now"]["humidity"].as<String>() + "% ";
@@ -224,7 +250,7 @@ void drawClass()
     tft.drawLine(26 + 12 + 6 + 39 * i, 35, 26 + 12 + 6 + 39 * i, 70, c_Line);
   }
   tft.drawLine(12, 55, 468, 55, c_Line);
-  deserializeJson(Mqtt_Sub, _class);
+  deserializeJson(Mqtt_Sub, _class);//解析课表
   String CL;
   if (digitalRead(WeakFlag))
   {
@@ -238,13 +264,19 @@ void drawClass()
   tft.drawString(CL, 12, 57);
   tft.setTextColor(c_BL);
   tft.drawString(_date + temp + hump + wind, 12, 5);
-   tft.setTextColor(c_text);
-   //需要下调
+  tft.setTextColor(c_text);
   tft.drawString(temp, 180, 144);
-   tft.drawString(hump, 180, 208);
+  tft.drawString(hump, 180, 208);
   time_update();
   //setPngPosition(180,20);
   // load_png(map_http.c_str());
+  get_net(web_sc,0);
+  tft.loadFont(fontname, SD);//加载字体
+  //tft.setCursor(240,80);
+  tft.setCursor(12,260);
+  tft.print(JsonMsg);
+  tft.unloadFont();//卸载字体
+  SD.end();
 }
 void sd_en() {
   if (!SD.begin(sdSelectPin)) {
@@ -404,4 +436,52 @@ void showTime(uint32_t msTime) {
   Serial.print(F(" JPEG drawn in "));
   Serial.print(msTime);
   Serial.println(F(" ms "));
+}
+// Mqtt相关函数
+void callback(char *topic, byte *payload, unsigned int length) {
+  // Serial.print("Message arrived [");
+  //  Serial.print(topic);
+  //   Serial.print("] ");
+  payload[length] = 0;
+  deserializeJson(Mqtt_Sub, String((char *)payload));  //对接收到的MQTT_Message进行JSON解析
+  // JSON文件格式：https://github.com/yu123an/esp8266/blob/master/EPS32/json.log
+  //"Type": "weather",//消息类型，包含：weather，message，gif，
+  String type = Mqtt_Sub["Type"];
+  if (type == "time") {
+    Serial.println("准备更新时间");
+    Rtc.Begin();  // DS1307时间读写
+    if (!Rtc.GetIsRunning()) {
+      Serial.println("RTC was not actively running, starting now");
+      Rtc.SetIsRunning(true);
+    }
+    int _hour = Mqtt_Sub["hour"];
+    int _minute = Mqtt_Sub["minute"];
+    int _second = Mqtt_Sub["second"];
+    Rtc._SetDateTime(_second, _minute, _hour);
+  }  else {
+    Serial.println("New_thing");
+  }
+  EEPROM.commit();
+}
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Create a random client ID
+    String clientId = "ESP32-BigScreen";
+    // Attempt to connect
+    if (client.connect(clientId.c_str())) {
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+      // client.publish("outTopic", "hello world");
+      // ... and resubscribe
+      client.subscribe((MqttSubName).c_str());
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
 }
