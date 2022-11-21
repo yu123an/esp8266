@@ -40,6 +40,8 @@ String temp, hump, windDir, wind, _weather, _date;
 int _day, _hour, _minute, _second;
 unsigned long lastMsg = 0;
 int value = 0;
+//更新标志位
+int update_flag = 0;
 // 特殊引脚
 #define WeakFlag 13//周选择
 #define sdSelectPin 25//sd卡
@@ -104,7 +106,7 @@ void setup()
   }
   drawClass();
   time_update();
-  uptime.attach(600, drawClass);
+  uptime.attach(600, update_flag_change);
 //  client.setServer(mqtt_server, 1383);
 //  client.setCallback(callback);
 //  if (!client.connected()) {
@@ -130,6 +132,10 @@ void loop()
 //    reconnect();
 //  }
 //  client.loop();
+if(update_flag){
+  drawClass();
+  update_flag = 0;
+}
 }
 // 更新时间
 void time_update()
@@ -486,4 +492,7 @@ void reconnect() {
       delay(5000);
     }
   }
+}
+void update_flag_change(){
+  update_flag = 1;
 }
