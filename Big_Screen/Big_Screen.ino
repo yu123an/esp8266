@@ -105,11 +105,13 @@ void setup()
   drawClass();
   time_update();
   uptime.attach(600, drawClass);
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
-  client.publish((MqttPubName).c_str(), "{\"Type\":\"update\"}");
+//  client.setServer(mqtt_server, 1383);
+//  client.setCallback(callback);
+//  if (!client.connected()) {
+//    reconnect();
+//  }
+//  client.loop();
+//  client.publish((MqttPubName).c_str(), "{\"Type\":\"update\"}");
 }
 
 void loop()
@@ -124,10 +126,10 @@ void loop()
   // }
   drawTime();
   delay(980);
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
+//  if (!client.connected()) {
+//    reconnect();
+//  }
+//  client.loop();
 }
 // 更新时间
 void time_update()
