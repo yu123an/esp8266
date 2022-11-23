@@ -57,6 +57,8 @@ char msg[MSG_BUFFER_SIZE];
 StaticJsonDocument<20000> Mqtt_Sub;
 // 实例化类
 TFT_eSPI tft = TFT_eSPI();
+// 添加刷新缓存
+TFT_eSprite Stime = TFT_eSprite(&tft);
 //#include "support_functions.h"//加载png图片
 WiFiUDP ntpUDP;
 WiFiClientSecure espClient;
@@ -156,6 +158,7 @@ void drawTime() {
   }
   RtcDateTime now = Rtc.GetDateTime();
   // tft.setTextColor(c_time,c_BL,1);
+  /*
   tft.setFreeFont(PAPL);
   tft.setTextColor(c_time);
   tft.fillRect(175, 78, 65, 45, c_BL);
@@ -166,6 +169,13 @@ void drawTime() {
     }
   }
   tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 12, 80);
+*/
+Stime.createSprite(250,40);
+Stime.setFreeFont(PAPL);
+Stime.fillScreen(c_BL);
+Stime.setTextColor(c_time);
+Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 0, 0);
+Stime.pushSprite(12,80);
 }
 // http请求
 void get_net(String web, bool isdecode) {
