@@ -32,7 +32,8 @@
 #define DejaVu &DejaVu_Sans_Mono_20  //等宽字体
 #define PAPL &PAPL_125pt7b           //等宽数字
 // String fontname = "siyuan20";  //思源宋体
-String fontname = "fangzheng20";  //方正幼黑
+//String fontname = "fangzheng20";  //方正幼黑
+String fontname = "sisong20";  //思源宋体
 // EEPROM地址
 #define EEPROM_ADDR 0x50
 String shici;  //古诗词api返回诗句
@@ -76,12 +77,12 @@ void setup() {
   sd_en();
   //开机，显示开机画面
   tft.begin();
-  analogWrite(32,127);
+  analogWrite(32,128);
   tft.setRotation(1);
   tft.fillScreen(c_BL);
   tft.setTextColor(c_time);
   tft.setFreeFont(Digi);
-  tft.drawString("Chwhsn", 50, 60);
+  tft.drawString("Chwhsen", 50, 60);
   tft.drawString("Start.....", 50, 120);
   // WiFi扫描，密码选择
   Scan_WiFi();
