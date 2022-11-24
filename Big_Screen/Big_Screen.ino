@@ -79,7 +79,7 @@ void setup() {
   sd_en();
   //开机，显示开机画面
   tft.begin();
-  analogWrite(32,128);
+  analogWrite(32, 128);
   tft.setRotation(1);
   tft.fillScreen(c_BL);
   tft.setTextColor(c_time);
@@ -159,24 +159,30 @@ void drawTime() {
   RtcDateTime now = Rtc.GetDateTime();
   // tft.setTextColor(c_time,c_BL,1);
   /*
-  tft.setFreeFont(PAPL);
-  tft.setTextColor(c_time);
-  tft.fillRect(175, 78, 65, 45, c_BL);
-  if (now.Second() == 0) {
+    tft.setFreeFont(PAPL);
+    tft.setTextColor(c_time);
+    tft.fillRect(175, 78, 65, 45, c_BL);
+    if (now.Second() == 0) {
     tft.fillRect(95, 78, 65, 45, c_BL);
     if (now.Minute() == 0) {
       tft.fillRect(05, 78, 75, 45, c_BL);
     }
-  }
-  tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 12, 80);
-*/
-Stime.createSprite(250,40);
-Stime.setFreeFont(PAPL);
-Stime.fillScreen(c_BL);
-Stime.setTextColor(c_time);
-Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 0, 0);
-Stime.pushSprite(12,80);
-Stime.deleteSprite();
+    }
+    tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 12, 80);
+  */
+//  Serial.print("申请缓存之前：");
+//  Serial.println(ESP.getFreeHeap());
+  Stime.createSprite(250, 40);
+  Stime.setFreeFont(PAPL);
+  Stime.fillScreen(c_BL);
+  Stime.setTextColor(c_time);
+  Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 0, 0);
+  Stime.pushSprite(12, 80);
+//  Serial.print("绘制时间：");
+//  Serial.println(ESP.getFreeHeap());
+  Stime.deleteSprite();
+//  Serial.print("释放缓存：");
+//  Serial.println(ESP.getFreeHeap());
 }
 // http请求
 void get_net(String web, bool isdecode) {
@@ -276,11 +282,24 @@ void drawClass() {
   // setPngPosition(180,20);
   //  load_png(map_http.c_str());
   get_net(web_sc, 0);
+//  Serial.print("加载字体之前：");
+//  Serial.println(ESP.getFreeHeap());
   tft.loadFont(fontname, SD);  //加载字体
-  // tft.setCursor(240,80);
   tft.setCursor(12, 260);
   tft.print(JsonMsg);
+//  Serial.print("打印字体：");
+//  Serial.println(ESP.getFreeHeap());
   tft.unloadFont();  //卸载字体
+//  Serial.print("写在字体之后：");
+//  Serial.println(ESP.getFreeHeap());
+  // 通过sprite加载诗句
+  //  Stime.createSprite(240,80);
+  //  Stime.loadFont(fontname,SD);
+  //  Stime.setCursor(12,0);
+  //  Stime.print(JsonMsg);
+  //  Stime.unloadFont();
+  //  Stime.pushSprite(0,240);
+  //  Stime.deleteSprite();
   SD.end();
 }
 void sd_en() {
