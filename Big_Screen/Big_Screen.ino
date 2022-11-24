@@ -176,6 +176,7 @@ Stime.fillScreen(c_BL);
 Stime.setTextColor(c_time);
 Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 0, 0);
 Stime.pushSprite(12,80);
+Stime.deleteSprite();
 }
 // http请求
 void get_net(String web, bool isdecode) {
