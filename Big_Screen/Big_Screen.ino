@@ -52,9 +52,9 @@ const int bat = 36;
 float v_bat = 0;
 // json串解析
 String JsonMsg;
-#define MSG_BUFFER_SIZE (20000)
+#define MSG_BUFFER_SIZE (2000)
 char msg[MSG_BUFFER_SIZE];
-StaticJsonDocument<20000> Mqtt_Sub;
+StaticJsonDocument<2000> Mqtt_Sub;
 // 实例化类
 TFT_eSPI tft = TFT_eSPI();
 // 添加刷新缓存
@@ -130,7 +130,6 @@ void loop() {
   //   delay(60 * 1000);
   // }
   drawTime();
-  delay(980);
   //  if (!client.connected()) {
   //    reconnect();
   //  }
@@ -139,6 +138,9 @@ void loop() {
     drawClass();
     update_flag = 0;
   }
+  // get_net(todolist,0);
+  //Serial.println(JsonMsg);
+  delay(980);
 }
 // 更新时间
 void time_update() {
@@ -170,19 +172,19 @@ void drawTime() {
     }
     tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 12, 80);
   */
-//  Serial.print("申请缓存之前：");
-//  Serial.println(ESP.getFreeHeap());
+  //  Serial.print("申请缓存之前：");
+  //  Serial.println(ESP.getFreeHeap());
   Stime.createSprite(250, 40);
   Stime.setFreeFont(PAPL);
   Stime.fillScreen(c_BL);
   Stime.setTextColor(c_time);
   Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 0, 0);
   Stime.pushSprite(12, 80);
-//  Serial.print("绘制时间：");
-//  Serial.println(ESP.getFreeHeap());
+  //  Serial.print("绘制时间：");
+  //  Serial.println(ESP.getFreeHeap());
   Stime.deleteSprite();
-//  Serial.print("释放缓存：");
-//  Serial.println(ESP.getFreeHeap());
+  //  Serial.print("释放缓存：");
+  //  Serial.println(ESP.getFreeHeap());
 }
 // http请求
 void get_net(String web, bool isdecode) {
@@ -282,24 +284,11 @@ void drawClass() {
   // setPngPosition(180,20);
   //  load_png(map_http.c_str());
   get_net(web_sc, 0);
-//  Serial.print("加载字体之前：");
-//  Serial.println(ESP.getFreeHeap());
   tft.loadFont(fontname, SD);  //加载字体
   tft.setCursor(12, 260);
   tft.print(JsonMsg);
-//  Serial.print("打印字体：");
-//  Serial.println(ESP.getFreeHeap());
   tft.unloadFont();  //卸载字体
-//  Serial.print("写在字体之后：");
-//  Serial.println(ESP.getFreeHeap());
-  // 通过sprite加载诗句
-  //  Stime.createSprite(240,80);
-  //  Stime.loadFont(fontname,SD);
-  //  Stime.setCursor(12,0);
-  //  Stime.print(JsonMsg);
-  //  Stime.unloadFont();
-  //  Stime.pushSprite(0,240);
-  //  Stime.deleteSprite();
+  drawToDo();
   SD.end();
 }
 void sd_en() {
@@ -521,4 +510,17 @@ void reconnect() {
 }
 void update_flag_change() {
   update_flag = 1;
+}
+void drawToDo() {
+  tft.fillRect(270, 80, 210, 180, c_BL);
+  get_net(todolist, 1);
+  int totle = Mqtt_Sub["num"].as<int>();
+  tft.loadFont(fontname, SD);  //加载字体
+  tft.setCursor(270, 90);
+  tft.print("今日待办：");
+  for (int i = 0; i < totle; i++) {
+    tft.setCursor(270, 120 + i * 30);
+    tft.print(String(i + 1) + "." + Mqtt_Sub["list"][i]["no"].as<String>());
+  }
+  tft.unloadFont();
 }
