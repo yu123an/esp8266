@@ -43,6 +43,8 @@ unsigned long lastMsg = 0;
 int value = 0;
 //更新标志位
 int update_flag = 0;
+// 亮度控制
+int Light = 127;
 // 特殊引脚
 #define WeakFlag 13     //周选择
 #define sdSelectPin 25  // sd卡
@@ -66,9 +68,9 @@ PubSubClient client(espClient);
 NTPClient timeClient(ntpUDP, "ntp2.aliyun.com", 8 * 3600, 60000);
 RtcDS1307<TwoWire> Rtc(Wire);
 // 按钮
-OneButton Buton1(34, 1, 0);
-OneButton Buton2(35, 1, 0);
-OneButton Buton3(36, 1, 1);
+OneButton ButtonMiddle(34, 1, 0);
+OneButton ButtonDown(35, 1, 0);
+OneButton ButtonUp(39, 1, 0);
 Ticker button_wdg;
 Ticker uptime;
 void setup() {
@@ -79,7 +81,7 @@ void setup() {
   sd_en();
   //开机，显示开机画面
   tft.begin();
-  analogWrite(32, 128);
+  analogWrite(32, Light);
   tft.setRotation(1);
   tft.fillScreen(c_BL);
   tft.setTextColor(c_time);
@@ -109,7 +111,6 @@ void setup() {
   }
   drawClass();
   // 隔十分钟更新时间与课表，天气
-  uptime.attach(600, update_flag_change);
   WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("无线终端和接入点的连接已中断");
@@ -118,6 +119,10 @@ void setup() {
   {
     Serial.println("未能成功断开连接！");
   }
+  ButtonUp.attachClick(UpLight);
+  ButtonDown.attachClick(DownLight);
+  uptime.attach(600, update_flag_change);
+  button_wdg.attach_ms(20,button_tick);
 }
 
 void loop() {
@@ -540,4 +545,21 @@ void drawToDo() {
     tft.print(String(i + 1) + "." + Mqtt_Sub["list"][i]["no"].as<String>());
   }
   tft.unloadFont();
+}
+void button_tick(){
+  ButtonMiddle.tick();
+  ButtonDown.tick();
+  ButtonUp.tick();
+}
+void UpLight(){
+  Light +=5;
+  analogWrite(32, Light);
+  Serial.print("Now up the light :");
+  Serial.println(Light);
+}
+void DownLight(){
+  Light -=5;
+  analogWrite(32, Light);
+   Serial.print("Now down the light :");
+  Serial.println(Light);
 }
