@@ -110,14 +110,14 @@ void setup() {
   drawClass();
   // 隔十分钟更新时间与课表，天气
   uptime.attach(600, update_flag_change);
-  // writeFile(SD, "/hello.txt", "Hello ");
-  //  client.setServer(mqtt_server, 1383);
-  //  client.setCallback(callback);
-  //  if (!client.connected()) {
-  //    reconnect();
-  //  }
-  //  client.loop();
-  //  client.publish((MqttPubName).c_str(), "{\"Type\":\"update\"}");
+  WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("无线终端和接入点的连接已中断");
+  }
+  else
+  {
+    Serial.println("未能成功断开连接！");
+  }
 }
 
 void loop() {
@@ -135,8 +135,25 @@ void loop() {
   //  }
   //  client.loop();
   if (update_flag) {
+    WiFi.begin(ssid, password);  // 连接网络
+    Serial.print("Connecting to ");
+    Serial.print(ssid);
+    while (WiFi.status() != WL_CONNECTED) {  // 等待连接
+      delay(500);
+      Serial.print('.');
+    }
+    Serial.println('\n');
+    Serial.println("Connection established!");
     drawClass();
     update_flag = 0;
+    WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("无线终端和接入点的连接已中断");
+    }
+    else
+    {
+      Serial.println("未能成功断开连接！");
+    }
   }
   // get_net(todolist,0);
   //Serial.println(JsonMsg);
