@@ -12,9 +12,9 @@
 #include <RtcDS1302.h>
 #include <PubSubClient.h>
 //敏感信息
-const char *mqtt_server = "c-----------";
-const char *ssid = "------";
-const char *password = "-----------";
+const char *mqtt_server = "----------------";
+const char *ssid = "----------------";
+const char *password = "----------------";
 // LED使能引脚
 #define LED 13
 // LOG打印标志位
@@ -76,7 +76,7 @@ void setup()
   //定时任务，每隔5s发布信息
   update_msg.attach(5, Pub_msg);
   // MQTT，指定服务器，回调函数，重连操作
-  client.setServer(mqtt_server, 1383);
+  client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
   if (!client.connected())
   {
