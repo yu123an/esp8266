@@ -21,7 +21,7 @@
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
-#include "sdrw.h"
+//#include "sdrw.h"
 //定义颜色
 #define c_BL 0xFFFF
 #define c_Line tft.color24to16(0x426666)
@@ -103,12 +103,12 @@ void setup() {
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());
   // 时间更新
-  time_update();
   Rtc.Begin();  // DS1307时间读写
   if (!Rtc.GetIsRunning()) {
     Serial.println("RTC was not actively running, starting now");
     Rtc.SetIsRunning(true);
   }
+  time_update();
   drawClass();
   // 隔十分钟更新时间与课表，天气
   WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
@@ -481,54 +481,6 @@ void showTime(uint32_t msTime) {
   Serial.print(F(" JPEG drawn in "));
   Serial.print(msTime);
   Serial.println(F(" ms "));
-}
-// Mqtt相关函数
-void callback(char *topic, byte *payload, unsigned int length) {
-  // Serial.print("Message arrived [");
-  //  Serial.print(topic);
-  //   Serial.print("] ");
-  payload[length] = 0;
-  deserializeJson(Mqtt_Sub, String((char *)payload));  //对接收到的MQTT_Message进行JSON解析
-  // JSON文件格式：https://github.com/yu123an/esp8266/blob/master/EPS32/json.log
-  //"Type": "weather",//消息类型，包含：weather，message，gif，
-  String type = Mqtt_Sub["Type"];
-  if (type == "time") {
-    Serial.println("准备更新时间");
-    Rtc.Begin();  // DS1307时间读写
-    if (!Rtc.GetIsRunning()) {
-      Serial.println("RTC was not actively running, starting now");
-      Rtc.SetIsRunning(true);
-    }
-    int _hour = Mqtt_Sub["hour"];
-    int _minute = Mqtt_Sub["minute"];
-    int _second = Mqtt_Sub["second"];
-    Rtc._SetDateTime(_second, _minute, _hour);
-  } else {
-    Serial.println("New_thing");
-  }
-  EEPROM.commit();
-}
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Create a random client ID
-    String clientId = "ESP32-BigScreen";
-    // Attempt to connect
-    if (client.connect(clientId.c_str())) {
-      Serial.println("connected");
-      // Once connected, publish an announcement...
-      // client.publish("outTopic", "hello world");
-      // ... and resubscribe
-      client.subscribe((MqttSubName).c_str());
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
 }
 void update_flag_change() {
   update_flag = 1;
