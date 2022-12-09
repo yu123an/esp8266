@@ -33,7 +33,8 @@
 #define PAPL &PAPL_125pt7b           //等宽数字
 // String fontname = "siyuan20";  //思源宋体
 //String fontname = "fangzheng20";  //方正幼黑
-String fontname = "sisong20";  //思源宋体
+//String fontname = "sisong20";  //思源宋体
+String fontname = "FZFWZhuZiAYuanJWR20"; //方正细金陵简体
 // EEPROM地址
 #define EEPROM_ADDR 0x50
 String shici;  //古诗词api返回诗句
@@ -61,7 +62,7 @@ StaticJsonDocument<2000> Mqtt_Sub;
 TFT_eSPI tft = TFT_eSPI();
 // 添加刷新缓存
 TFT_eSprite Stime = TFT_eSprite(&tft);
-//#include "support_functions.h"//加载png图片
+#include "support_functions.h"//加载png图片
 WiFiUDP ntpUDP;
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
@@ -497,6 +498,11 @@ void drawToDo() {
     tft.print(String(i + 1) + "." + Mqtt_Sub["list"][i]["no"].as<String>());
   }
   tft.unloadFont();
+}
+void _drawToDo(){
+tft.fillRect(270, 80, 210, 180, c_BL);
+  setPngPosition(210, 180);
+  load_png("http://192.168.2.174/002.png"); 
 }
 void button_tick(){
   ButtonMiddle.tick();
