@@ -304,13 +304,22 @@ void drawClass() {
   tft.drawString(temp, 180, 144);
   tft.drawString(hump, 180, 208);
   time_update();
-  // setPngPosition(180,20);
-  //  load_png(map_http.c_str());
   get_net(web_sc, 0);
-  tft.loadFont(fontname, SD);  //加载字体
-  tft.setCursor(12, 260);
-  tft.print(JsonMsg);
-  tft.unloadFont();  //卸载字体
+  //直接写
+  // tft.loadFont(fontname, SD);  //加载字体
+  // tft.setCursor(12, 260);
+  // tft.print(JsonMsg);
+  // tft.unloadFont();  //卸载字体
+  //Sprite缓存刷中文字
+  Stime.createSprite(240,60);
+  Stime.fillScreen(c_BL);
+  Stime.setTextColor(c_text);
+  Stime.setCursor(0,12);
+  Stime.loadFont(fontname,SD);
+  Stime.print(JsonMsg);
+  Stime.unloadFont();
+  Stime.pushSprite(12,260);
+  Stime.deleteSprite();
   drawToDo();
   SD.end();
 }
@@ -517,6 +526,9 @@ void UpLight(){
 }
 void DownLight(){
   Light -=5;
+  if(Light < 2){
+    Light = 6;
+  }
   analogWrite(32, Light);
    Serial.print("Now down the light :");
   Serial.println(Light);
