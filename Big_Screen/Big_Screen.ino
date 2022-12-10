@@ -123,7 +123,7 @@ void setup() {
   ButtonUp.attachClick(UpLight);
   ButtonDown.attachClick(DownLight);
   uptime.attach(600, update_flag_change);
-  button_wdg.attach_ms(20,button_tick);
+  button_wdg.attach_ms(20, button_tick);
 }
 
 void loop() {
@@ -182,32 +182,13 @@ void drawTime() {
     Rtc.SetIsRunning(true);
   }
   RtcDateTime now = Rtc.GetDateTime();
-  // tft.setTextColor(c_time,c_BL,1);
-  /*
-    tft.setFreeFont(PAPL);
-    tft.setTextColor(c_time);
-    tft.fillRect(175, 78, 65, 45, c_BL);
-    if (now.Second() == 0) {
-    tft.fillRect(95, 78, 65, 45, c_BL);
-    if (now.Minute() == 0) {
-      tft.fillRect(05, 78, 75, 45, c_BL);
-    }
-    }
-    tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 12, 80);
-  */
-  //  Serial.print("申请缓存之前：");
-  //  Serial.println(ESP.getFreeHeap());
   Stime.createSprite(250, 40);
   Stime.setFreeFont(PAPL);
   Stime.fillScreen(c_BL);
   Stime.setTextColor(c_time);
   Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 0, 0);
   Stime.pushSprite(12, 80);
-  //  Serial.print("绘制时间：");
-  //  Serial.println(ESP.getFreeHeap());
   Stime.deleteSprite();
-  //  Serial.print("释放缓存：");
-  //  Serial.println(ESP.getFreeHeap());
 }
 // http请求
 void get_net(String web, bool isdecode) {
@@ -279,11 +260,15 @@ void drawClass() {
   tft.setTextColor(c_text);
   tft.drawString(_Day + " A1 A2 A3 A4 B1 B2 B3 B4 C1 C2 C3", 12, 35);
   drawSdJpeg(("/128/" + _icon + ".png.jpg").c_str(), 0, 120);
+  // //
+  // Stime.createSprite(128,128);
+  // Stime.fillScreen(c_BL);
+  // load_png("");
+  // Stime.pushSprite(0,120);
+  // Stime.deleteSprite();
+  // //
   drawSdJpeg("/128/temp.jpg", 130, 128);
   drawSdJpeg("/128/humt.jpg", 130, 192);
-  // setPngPosition(0,120);
-  // load_file(SD, ("/weather_jpg/" + _icon + ".png").c_str());
-  // load_file(SD, "/64/100.png");
   for (int i = 0; i < 11; i++) {
     tft.drawLine(26 + 12 + 6 + 39 * i, 35, 26 + 12 + 6 + 39 * i, 70, c_Line);
   }
@@ -299,7 +284,6 @@ void drawClass() {
   tft.drawString(CL, 12, 57);
   tft.setTextColor(c_BL);
   tft.drawString(_date +  String(v_bat) + "V", 12, 5);
-  // tft.drawString(_date + temp + hump + wind + String(v_bat), 12, 5);
   tft.setTextColor(c_text);
   tft.drawString(temp, 180, 144);
   tft.drawString(hump, 180, 208);
@@ -311,16 +295,16 @@ void drawClass() {
   // tft.print(JsonMsg);
   // tft.unloadFont();  //卸载字体
   //Sprite缓存刷中文字
-  Stime.createSprite(240,60);
+  Stime.createSprite(240, 60);
   Stime.fillScreen(c_BL);
   Stime.setTextColor(c_text);
-  Stime.setCursor(0,12);
-  Stime.loadFont(fontname,SD);
+  Stime.setCursor(0, 12);
+  Stime.loadFont(fontname, SD);
   Stime.print(JsonMsg);
   Stime.unloadFont();
-  Stime.pushSprite(12,260);
+  Stime.pushSprite(12, 260);
   Stime.deleteSprite();
-  drawToDo();
+  _drawToDo();
   SD.end();
 }
 void sd_en() {
@@ -383,11 +367,6 @@ void get_bat() {
   //_bat > 3;
   v_bat = _bat * 6.6 / 4096 / 8;
 }
-//####################################################################################################
-// Draw a JPEG on the TFT, images will be cropped on the right/bottom sides if they do not fit
-//####################################################################################################
-// This function assumes xpos,ypos is a valid screen coordinate. For convenience images that do not
-// fit totally on the screen are cropped to the nearest MCU size and may leave right/bottom borders.
 void jpegRender(int xpos, int ypos) {
 
   // jpegInfo(); // Print information from the JPEG file (could comment this line out)
@@ -508,28 +487,39 @@ void drawToDo() {
   }
   tft.unloadFont();
 }
-void _drawToDo(){
-tft.fillRect(270, 80, 210, 180, c_BL);
-  setPngPosition(210, 180);
-  load_png("http://192.168.2.174/002.png"); 
+void _drawToDo() {
+  get_net(todolist, 1);
+  int totle = Mqtt_Sub["num"].as<int>();
+  Stime.createSprite(210, 120);
+  Stime.fillScreen(c_BL);
+  Stime.loadFont(fontname, SD);  //加载字体
+  Stime.setCursor(0, 10);
+  Stime.print("今日待办：");
+  for (int i = 0; i < totle; i++) {
+    Stime.setCursor(0,40 + i * 30);
+    Stime.print(String(i + 1) + "." + Mqtt_Sub["list"][i]["no"].as<String>());
+  }
+  Stime.unloadFont();
+  Stime.pushSprite(270,80);
+  Stime.deleteSprite();
 }
-void button_tick(){
+void button_tick() {
   ButtonMiddle.tick();
   ButtonDown.tick();
   ButtonUp.tick();
 }
-void UpLight(){
-  Light +=5;
+void UpLight() {
+  Light += 5;
   analogWrite(32, Light);
   Serial.print("Now up the light :");
   Serial.println(Light);
 }
-void DownLight(){
-  Light -=5;
-  if(Light < 2){
+void DownLight() {
+  Light -= 5;
+  if (Light < 2) {
     Light = 6;
   }
   analogWrite(32, Light);
-   Serial.print("Now down the light :");
+  Serial.print("Now down the light :");
   Serial.println(Light);
 }
