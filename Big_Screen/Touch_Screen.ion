@@ -1,0 +1,315 @@
+/*
+  引脚分配：
+  {
+  LCD:
+  CS:15;DC:2;RST:4;SCK:18;SDA:23;LED:32
+  SD CARD:
+  CS:25
+  Touch XPT2046:
+  CS:13;IRQ:27
+  IIC:
+  SCL:22;SDA:21
+  LIGHT:33
+  BUZ:26
+  SERIAL2:RX:16,TX:17
+  ENCODER:34,35,39
+  BAT:36
+  NC:5,12
+  }
+  功能列表
+  {
+  外部串口
+  蜂鸣器----aaa
+  充放电----aaa
+  光敏感应----aaa
+  电量检测----aaa
+  板载EEPROM
+  DS1307时钟----aaa
+  旋转编码器----aaa
+  触摸支持
+  板载SD卡----aaa
+  SHT30温湿度----
+  }
+*/
+// 加载库
+#include "msg.h"        //敏感信息
+#include <NTPClient.h>  //网络校时
+#include <HTTPClient.h> //http请求
+#include "TFT_eSPI.h"   //屏幕驱动
+#include <RtcDS1307.h>
+#include <Wire.h>    //DS1307驱动
+#include <WiFiUdp.h> //wifi支持
+#include <WiFi.h>
+#include <ArduinoJson.h>          //JSON解析
+#include <WiFiClientSecure.h>     //https请求
+#include "OneButton.h"            //按钮启用
+#include <Ticker.h>               //定时任务
+#include "ClosedCube_SHT31D.h"    //SHT30
+#include "AiEsp32RotaryEncoder.h" //旋转编码器
+#include <JPEGDecoder.h>          //加载jpg图片
+#include <EEPROM.h>               // 片上EEPROM
+#include "Adafruit_EEPROM_I2C.h"  //外置EEProm
+#include "Adafruit_FRAM_I2C.h"
+#include <PubSubClient.h> //MQTT
+#include "FS.h"           // SD卡读写
+#include "SD.h"
+#include "SPI.h"
+
+// 特殊引脚
+#define WeakFlag 13    // 周选择
+#define sdSelectPin 25 // sd卡
+#define SCL 22
+#define SDA 21
+#define bat 36
+#define buz 26
+#define Light_pin 33
+#define RE_A_PIN 35
+#define RE_B_PIN 39
+#define RE_BUTTON_PIN 34
+#define RE_VCC_PIN -1
+#define RE_STEPS 4
+
+// 颜色列表
+#define c_BL 0xFFFF
+#define c_Line tft.color24to16(0x426666)
+#define c_text tft.color24to16(0x003371)
+#define c_time tft.color24to16(0x333631)
+
+// 字体列表
+#define Digi &DS_DIGI32pt7b         // 数码管字体
+#define DejaVu &DejaVu_Sans_Mono_20 // 等宽字体
+#define PAPL &PAPL_125pt7b          // 等宽数字
+// String fontname = "siyuan20";  //思源宋体
+// String fontname = "fangzheng20";  //方正幼黑
+// String fontname = "sisong20";  //思源宋体
+String fontname = "FZFWZhuZiAYuanJWR20"; // 方正细金陵简体
+
+// 变量列表
+String temp, hump, windDir, wind, _weather, _date; // 天气状况
+int Temp_in, Humidity_in;                          // 室内温湿度
+int _day, _hour, _minute, _second;                 // 时间更新
+int update_flag = 0;                               // 更新标志位
+int Light = 127;                                   // 亮度控制
+int encoder = 127;                                //编码器
+float v_bat = 0;                                   // 电量检测
+float v_light = 0;                                 // 光敏
+String JsonMsg;                                    // json串解析
+#define MSG_BUFFER_SIZE (2000)
+char msg[MSG_BUFFER_SIZE];
+StaticJsonDocument<2000> Mqtt_Sub;
+unsigned long lastMsg = 0;
+
+// 实例化类
+TFT_eSPI tft = TFT_eSPI();             // TFT显示
+TFT_eSprite Stime = TFT_eSprite(&tft); // 添加刷新缓存
+WiFiUDP ntpUDP;
+WiFiClientSecure espClient;     // WiFi
+PubSubClient client(espClient); // MQTT
+NTPClient timeClient(ntpUDP, "ntp2.aliyun.com", 8 * 3600, 60000);
+RtcDS1307<TwoWire> Rtc(Wire);                                                                                       // DS1302
+ClosedCube_SHT31D sht3xd;                                                                                           // SHT30
+AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(RE_A_PIN, RE_B_PIN, RE_BUTTON_PIN, RE_VCC_PIN, RE_STEPS); // 编码器
+Ticker uptime;                                                                                                      // 更新时间
+Ticker ReadEncoder;                                                                                                 // 编码器轮询
+
+// 编码器函数
+void rotary_onButtonClick()
+{
+  static unsigned long lastTimePressed = 0;
+  // ignore multiple press in that time milliseconds
+  if (millis() - lastTimePressed < 500)
+  {
+    return;
+  }
+  lastTimePressed = millis();
+  Serial.print("button pressed ");
+  Serial.print(millis());
+  Serial.println(" milliseconds after restart");
+}
+void rotary_loop()
+{
+  // dont print anything unless value changed
+  if (rotaryEncoder.encoderChanged())
+  {
+    Serial.print("Value: ");
+    Serial.println(rotaryEncoder.readEncoder());
+    encoder = rotaryEncoder.readEncoder();
+    buzzer();
+  }
+  if (rotaryEncoder.isEncoderButtonClicked())
+  {
+    rotary_onButtonClick();
+  }
+}
+void IRAM_ATTR readEncoderISR()
+{
+  rotaryEncoder.readEncoder_ISR();
+}
+
+void setup()
+{
+  Serial.begin(115200);
+  ledcSetup(0, 500, 8);
+  sd_en(); // SD使能
+  // LCD初始化
+  tft.begin();
+  analogWrite(Light_pin, Light);
+  tft.setRotation(1);
+  tft.fillScreen(c_BL);
+  WiFi.begin("SSIDHome", passhome); // 连接网络
+  Serial.print("Connecting to ");
+  Serial.print(ssid);
+  while (WiFi.status() != WL_CONNECTED)
+  { // 等待连接
+    delay(500);
+    Serial.print('.');
+  }
+  Serial.println('\n');
+  Serial.println("Connection established!");
+  // get_net();
+  Serial.print("IP address:\t");
+  Serial.println(WiFi.localIP());
+  // 时间更新
+  Rtc.Begin(); // DS1307时间读写
+  if (!Rtc.GetIsRunning())
+  {
+    Serial.println("RTC was not actively running, starting now");
+    Rtc.SetIsRunning(true);
+  }
+  time_update();
+  // 编码器
+  rotaryEncoder.begin();
+  rotaryEncoder.setup(readEncoderISR);
+  bool circleValues = false;
+  rotaryEncoder.setBoundaries(0, 24, circleValues);
+  rotaryEncoder.setEncoderValue(4);
+  // rotaryEncoder.setAcceleration(250);
+  ReadEncoder.attach_ms(500, rotary_loop);
+  tft.setFreeFont(DejaVu);
+  // tft.fillScreen(c_BL);
+  sht3xd.begin(0x44);
+  if (sht3xd.periodicStart(SHT3XD_REPEATABILITY_HIGH, SHT3XD_FREQUENCY_10HZ) != SHT3XD_NO_ERROR)
+    Serial.println("[ERROR] Cannot start periodic mode");
+}
+
+void loop()
+{
+  get_bat();
+  get_light();
+  get_sht30("Periodic Mode", sht3xd.periodicFetchData());
+  Rtc.Begin();  // DS1307时间读写
+  if (!Rtc.GetIsRunning()) {
+    Serial.println("RTC was not actively running, starting now");
+    Rtc.SetIsRunning(true);
+  }
+  RtcDateTime now = Rtc.GetDateTime();
+  Stime.createSprite(280, 120);
+  Stime.fillScreen(c_BL);
+  Stime.setTextColor(c_time);
+  Stime.setFreeFont(DejaVu);
+  Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 220, 10);
+  Stime.drawString("This is bat:", 12, 10);
+  Stime.drawString(String(v_bat), 12, 40);
+  Stime.drawString("This is Light:", 12, 70);
+  Stime.drawString(String(Light), 12, 100);
+  Stime.drawString("This is temp:", 12, 130);
+  Stime.drawString(String(Temp_in), 12, 160);
+  Stime.drawString("This is Humidity:", 12, 190);
+  Stime.drawString(String(Humidity_in), 12, 220);
+  Stime.drawString("This is encoder:", 12, 250);
+  Stime.drawString(String(encoder), 12, 280);
+  Stime.pushSprite(0, 0);
+  Stime.deleteSprite();
+  delay(2000);
+}
+// 补充函数
+//  sd使能
+void sd_en()
+{
+  if (!SD.begin(sdSelectPin))
+  {
+    Serial.println("Card Mount Failed");
+    return;
+  }
+  uint8_t cardType = SD.cardType();
+
+  if (cardType == CARD_NONE)
+  {
+    Serial.println("No SD card attached");
+    return;
+  }
+  Serial.print("SD Card Type: ");
+  if (cardType == CARD_MMC)
+  {
+    Serial.println("MMC");
+  }
+  else if (cardType == CARD_SD)
+  {
+    Serial.println("SDSC");
+  }
+  else if (cardType == CARD_SDHC)
+  {
+    Serial.println("SDHC");
+  }
+  else
+  {
+    Serial.println("UNKNOWN");
+  }
+}
+// 更新时间
+void time_update()
+{
+  timeClient.begin();
+  timeClient.update();
+  _day = timeClient.getDay();
+  _hour = timeClient.getHours();
+  _minute = timeClient.getMinutes();
+  _second = timeClient.getSeconds();
+  Rtc._SetDateTime(_second, _minute, _hour);
+}
+// 获取SHT30温湿度
+void get_sht30(String text, SHT31D result)
+{
+  if (result.error == SHT3XD_NO_ERROR)
+  {
+    Temp_in = result.t;
+    Humidity_in = result.rh;
+  }
+  else
+  {
+    Serial.print(text);
+    Serial.print(": [ERROR] Code #");
+    Serial.println(result.error);
+  }
+}
+// 蜂鸣器
+void buzzer()
+{
+  ledcAttachPin(buz, 0); // The piezo speaker is attached to GPIO26
+  ledcWriteTone(0, 1000);
+  delay(150);
+  ledcDetachPin(26);
+  ledcWrite(0, 0);
+}
+// 获取电量
+void get_bat()
+{
+  double _bat = 0;
+  for (int i = 0; i < 8; i++)
+  {
+    _bat += analogRead(bat);
+  }
+  //_bat > 3;
+  v_bat = _bat * 6.6 / 4096 / 8;
+}
+// 获取光照亮度
+void get_light()
+{
+  double _Light = 0;
+  for (int i = 0; i < 8; i++)
+  {
+    _Light += analogRead(Light_pin);
+  }
+  //_bat > 3;
+  Light = _Light / 8;
+}
