@@ -23,12 +23,11 @@
   充放电----aaa
   光敏感应----aaa
   电量检测----aaa
-  板载EEPROM
   DS1307时钟----aaa
   旋转编码器----aaa
-  触摸支持
+  触摸支持----aaa
   板载SD卡----aaa
-  SHT30温湿度----
+  SHT30温湿度----aaa
   }
 */
 // 加载库
@@ -48,8 +47,6 @@
 #include "AiEsp32RotaryEncoder.h" //旋转编码器
 #include <JPEGDecoder.h>          //加载jpg图片
 #include <EEPROM.h>               // 片上EEPROM
-#include "Adafruit_EEPROM_I2C.h"  //外置EEProm
-#include "Adafruit_FRAM_I2C.h"
 #include <PubSubClient.h> //MQTT
 #include "FS.h"           // SD卡读写
 #include "SD.h"
@@ -111,7 +108,6 @@ ClosedCube_SHT31D sht3xd;                                                       
 AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(RE_A_PIN, RE_B_PIN, RE_BUTTON_PIN, RE_VCC_PIN, RE_STEPS); // 编码器
 Ticker uptime;                                                                                                      // 更新时间
 Ticker ReadEncoder;                                                                                                 // 编码器轮询
-
 // 编码器函数
 void rotary_onButtonClick()
 {
@@ -156,7 +152,7 @@ void setup()
   analogWrite(Light_pin, Light);
   tft.setRotation(1);
   tft.fillScreen(c_BL);
-  WiFi.begin("SSIDHome", passhome); // 连接网络
+  WiFi.begin("Nexus", passhome); // 连接网络
   Serial.print("Connecting to ");
   Serial.print(ssid);
   while (WiFi.status() != WL_CONNECTED)
@@ -184,43 +180,58 @@ void setup()
   rotaryEncoder.setBoundaries(0, 24, circleValues);
   rotaryEncoder.setEncoderValue(4);
   // rotaryEncoder.setAcceleration(250);
-  ReadEncoder.attach_ms(500, rotary_loop);
-  tft.setFreeFont(DejaVu);
-  // tft.fillScreen(c_BL);
+  ReadEncoder.attach_ms(50, rotary_loop);
   sht3xd.begin(0x44);
   if (sht3xd.periodicStart(SHT3XD_REPEATABILITY_HIGH, SHT3XD_FREQUENCY_10HZ) != SHT3XD_NO_ERROR)
     Serial.println("[ERROR] Cannot start periodic mode");
+drawHomePage();
+    uptime.attach(600, update_flag_change);
 }
 
 void loop()
 {
-  get_bat();
-  get_light();
-  get_sht30("Periodic Mode", sht3xd.periodicFetchData());
-  Rtc.Begin();  // DS1307时间读写
-  if (!Rtc.GetIsRunning()) {
-    Serial.println("RTC was not actively running, starting now");
-    Rtc.SetIsRunning(true);
-  }
-  RtcDateTime now = Rtc.GetDateTime();
-  Stime.createSprite(280, 120);
-  Stime.fillScreen(c_BL);
-  Stime.setTextColor(c_time);
-  Stime.setFreeFont(DejaVu);
-  Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 220, 10);
-  Stime.drawString("This is bat:", 12, 10);
-  Stime.drawString(String(v_bat), 12, 40);
-  Stime.drawString("This is Light:", 12, 70);
-  Stime.drawString(String(Light), 12, 100);
-  Stime.drawString("This is temp:", 12, 130);
-  Stime.drawString(String(Temp_in), 12, 160);
-  Stime.drawString("This is Humidity:", 12, 190);
-  Stime.drawString(String(Humidity_in), 12, 220);
-  Stime.drawString("This is encoder:", 12, 250);
-  Stime.drawString(String(encoder), 12, 280);
-  Stime.pushSprite(0, 0);
-  Stime.deleteSprite();
-  delay(2000);
+  // get_bat();
+  // get_light();
+  // get_sht30("Periodic Mode", sht3xd.periodicFetchData());
+  // Rtc.Begin();  // DS1307时间读写
+  // if (!Rtc.GetIsRunning()) {
+  //   Serial.println("RTC was not actively running, starting now");
+  //   Rtc.SetIsRunning(true);
+  // }
+  // RtcDateTime now = Rtc.GetDateTime();
+  // Stime.createSprite(240, 180);
+  // Stime.fillScreen(c_BL);
+  // Stime.setTextColor(c_time);
+  // Stime.setFreeFont(DejaVu);
+  // Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 200, 10);
+  // Stime.drawString("This is bat:", 12, 10);
+  // Stime.drawString(String(v_bat), 12, 40);
+  // Stime.drawString("This is Light:", 12, 70);
+  // Stime.drawString(String(Light), 12, 100);
+  // Stime.drawString("This is temp:", 12, 130);
+  // Stime.drawString(String(Temp_in), 12, 160);
+  // Stime.drawString("This is Humidity:", 12, 190);
+  // Stime.drawString(String(Humidity_in), 12, 220);
+  // Stime.drawString("This is encoder:", 12, 250);
+  // Stime.drawString(String(encoder), 12, 280);
+  // Stime.pushSprite(0, 0);
+  // Stime.deleteSprite();
+  // delay(2000);
+  drawTime();
+   if (update_flag) {
+    WiFi.begin(ssid, password);  // 连接网络
+    Serial.print("Connecting to ");
+    Serial.print(ssid);
+    while (WiFi.status() != WL_CONNECTED) {  // 等待连接
+      delay(500);
+      Serial.print('.');
+    }
+    Serial.println('\n');
+    Serial.println("Connection established!");
+    drawHomePage();
+    update_flag = 0;
+    }
+    delay(990);
 }
 // 补充函数
 //  sd使能
@@ -312,4 +323,224 @@ void get_light()
   }
   //_bat > 3;
   Light = _Light / 8;
+}
+void drawHomePage() {
+  sd_en();
+  Rtc.Begin();  // DS1307时间读写
+  if (!Rtc.GetIsRunning()) {
+    Serial.println("RTC was not actively running, starting now");
+    Rtc.SetIsRunning(true);
+  }
+  RtcDateTime now = Rtc.GetDateTime();
+  get_net(web_hf, 1);
+  _date = Mqtt_Sub["now"]["obsTime"].as<String>().substring(5, 10);
+  String _Day = Mqtt_Sub["now"]["obsTime"].as<String>().substring(8, 10);
+  String _icon = Mqtt_Sub["now"]["icon"].as<String>();
+  get_net(classlist, 1);
+  String CL = Mqtt_Sub["Single"][_day]["no"].as<String>();
+  get_bat();
+  tft.fillScreen(c_BL);
+  tft.fillRect(0, 0, 480, 30, c_text);//顶部栏
+  tft.setFreeFont(DejaVu);
+  tft.setTextColor(c_BL);
+  // 绘制顶部栏信息
+  tft.drawString(_date, 12, 5);
+  tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 188, 5);
+  tft.drawString(String(v_bat), 416, 5);
+  tft.setTextColor(c_text);
+  // 绘制课程表
+  tft.drawString(_Day + " A1 A2 A3 A4 B1 B2 B3 B4 C1 C2 C3", 12, 35);
+  tft.drawString(CL, 12, 57);
+  for (int i = 0; i < 11; i++) {
+    tft.drawLine(26 + 12 + 6 + 39 * i, 35, 26 + 12 + 6 + 39 * i, 70, c_Line);
+  }
+  tft.drawLine(12, 55, 468, 55, c_Line);
+  drawSdJpeg(("/64/" + _icon + ".png.jpg").c_str(), 288, 256);
+  drawToDo();
+}
+// http请求
+void get_net(String web, bool isdecode) {
+  HTTPClient http;
+  if (http.begin(web)) {
+    Serial.println("HTTPclient setUp done!");
+  }
+  int httpCode = http.GET();
+  if (httpCode > 0) {
+    if (httpCode == HTTP_CODE_OK) {
+      String payload = http.getString();
+      if (isdecode) {
+        deserializeJson(Mqtt_Sub, payload);
+      } else {
+        JsonMsg = payload;
+      }
+    }
+  } else {
+
+    Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+  }
+  http.end();
+}
+// http字符串解析
+void JsonEecoed(String json) {
+  deserializeJson(Mqtt_Sub, json);
+}
+void drawTime() {
+  Rtc.Begin();  // DS1307时间读写
+  if (!Rtc.GetIsRunning()) {
+    Serial.println("RTC was not actively running, starting now");
+    Rtc.SetIsRunning(true);
+  }
+  RtcDateTime now = Rtc.GetDateTime();
+  Stime.createSprite(104, 25);
+  Stime.setFreeFont(DejaVu);
+  Stime.fillScreen(c_text);
+  Stime.setTextColor(c_BL);
+  Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 0, 0);
+  Stime.pushSprite(188, 5);
+  Stime.deleteSprite();
+}
+void update_flag_change() {
+  update_flag = 1;
+}
+void drawToDo() {
+  tft.fillRect(288,80,192,176, c_BL);
+  get_net(todolist, 1);
+  int totle = Mqtt_Sub["num"].as<int>();
+  tft.loadFont(fontname, SD);  //加载字体
+  tft.setCursor(288, 85);
+  tft.print("今日待办：");
+  for (int i = 0; i < totle; i++) {
+    tft.setCursor(288, 115 + i * 30);
+    tft.print(String(i + 1) + "." + Mqtt_Sub["list"][i]["no"].as<String>());
+  }
+  tft.unloadFont();
+  SD.end();
+}
+//JPG 绘制
+void drawSdJpeg(const char *filename, int xpos, int ypos) {
+
+  // Open the named file (the Jpeg decoder library will close it)
+  File jpegFile = SD.open(filename, FILE_READ);  // or, file handle reference for SD library
+
+  if (!jpegFile) {
+    Serial.print("ERROR: File \"");
+    Serial.print(filename);
+    Serial.println("\" not found!");
+    return;
+  }
+
+  Serial.println("===========================");
+  Serial.print("Drawing file: ");
+  Serial.println(filename);
+  Serial.println("===========================");
+
+  // Use one of the following methods to initialise the decoder:
+  bool decoded = JpegDec.decodeSdFile(jpegFile);  // Pass the SD file handle to the decoder,
+  // bool decoded = JpegDec.decodeSdFile(filename);  // or pass the filename (String or character array)
+
+  if (decoded) {
+    // print information about the image to the serial port
+    jpegInfo();
+    // render the image onto the screen at given coordinates
+    jpegRender(xpos, ypos);
+  } else {
+    Serial.println("Jpeg file format not supported!");
+  }
+}
+void jpegRender(int xpos, int ypos) {
+
+  // jpegInfo(); // Print information from the JPEG file (could comment this line out)
+
+  uint16_t *pImg;
+  uint16_t mcu_w = JpegDec.MCUWidth;
+  uint16_t mcu_h = JpegDec.MCUHeight;
+  uint32_t max_x = JpegDec.width;
+  uint32_t max_y = JpegDec.height;
+
+  bool swapBytes = tft.getSwapBytes();
+  tft.setSwapBytes(true);
+
+  // Jpeg images are draw as a set of image block (tiles) called Minimum Coding Units (MCUs)
+  // Typically these MCUs are 16x16 pixel blocks
+  // Determine the width and height of the right and bottom edge image blocks
+  uint32_t min_w = jpg_min(mcu_w, max_x % mcu_w);
+  uint32_t min_h = jpg_min(mcu_h, max_y % mcu_h);
+
+  // save the current image block size
+  uint32_t win_w = mcu_w;
+  uint32_t win_h = mcu_h;
+
+  // record the current time so we can measure how long it takes to draw an image
+  uint32_t drawTime = millis();
+
+  // save the coordinate of the right and bottom edges to assist image cropping
+  // to the screen size
+  max_x += xpos;
+  max_y += ypos;
+
+  // Fetch data from the file, decode and display
+  while (JpegDec.read()) {  // While there is more data in the file
+    pImg = JpegDec.pImage;  // Decode a MCU (Minimum Coding Unit, typically a 8x8 or 16x16 pixel block)
+
+    // Calculate coordinates of top left corner of current MCU
+    int mcu_x = JpegDec.MCUx * mcu_w + xpos;
+    int mcu_y = JpegDec.MCUy * mcu_h + ypos;
+
+    // check if the image block size needs to be changed for the right edge
+    if (mcu_x + mcu_w <= max_x)
+      win_w = mcu_w;
+    else
+      win_w = min_w;
+
+    // check if the image block size needs to be changed for the bottom edge
+    if (mcu_y + mcu_h <= max_y)
+      win_h = mcu_h;
+    else
+      win_h = min_h;
+
+    // copy pixels into a contiguous block
+    if (win_w != mcu_w) {
+      uint16_t *cImg;
+      int p = 0;
+      cImg = pImg + win_w;
+      for (int h = 1; h < win_h; h++) {
+        p += mcu_w;
+        for (int w = 0; w < win_w; w++) {
+          *cImg = *(pImg + w + p);
+          cImg++;
+        }
+      }
+    }
+
+    // calculate how many pixels must be drawn
+    uint32_t mcu_pixels = win_w * win_h;
+    if ((mcu_x + win_w) <= tft.width() && (mcu_y + win_h) <= tft.height())
+      tft.pushImage(mcu_x, mcu_y, win_w, win_h, pImg);
+    else if ((mcu_y + win_h) >= tft.height())
+      JpegDec.abort();  // Image has run off bottom of screen so abort decoding
+  }
+
+  tft.setSwapBytes(swapBytes);
+}
+void jpegInfo() {
+  Serial.println("JPEG image info");
+  Serial.println("===============");
+  Serial.print("Width      :");
+  Serial.println(JpegDec.width);
+  Serial.print("Height     :");
+  Serial.println(JpegDec.height);
+  Serial.print("Components :");
+  Serial.println(JpegDec.comps);
+  Serial.print("MCU / row  :");
+  Serial.println(JpegDec.MCUSPerRow);
+  Serial.print("MCU / col  :");
+  Serial.println(JpegDec.MCUSPerCol);
+  Serial.print("Scan type  :");
+  Serial.println(JpegDec.scanType);
+  Serial.print("MCU width  :");
+  Serial.println(JpegDec.MCUWidth);
+  Serial.print("MCU height :");
+  Serial.println(JpegDec.MCUHeight);
+  Serial.println("===============");
+  Serial.println("");
 }
