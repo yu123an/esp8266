@@ -59,9 +59,10 @@
 #define SDA 21
 #define bat 36
 #define buz 26
+#define BlackLight 32
 #define Light_pin 33
-#define RE_A_PIN 35
-#define RE_B_PIN 39
+#define RE_A_PIN 39
+#define RE_B_PIN 35
 #define RE_BUTTON_PIN 34
 #define RE_VCC_PIN -1
 #define RE_STEPS 4
@@ -108,6 +109,7 @@ ClosedCube_SHT31D sht3xd;                                                       
 AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(RE_A_PIN, RE_B_PIN, RE_BUTTON_PIN, RE_VCC_PIN, RE_STEPS); // 编码器
 Ticker uptime;                                                                                                      // 更新时间
 Ticker ReadEncoder;                                                                                                 // 编码器轮询
+Ticker upTouch;//获取触摸坐标
 // 编码器函数
 void rotary_onButtonClick()
 {
@@ -130,12 +132,15 @@ void rotary_loop()
     Serial.print("Value: ");
     Serial.println(rotaryEncoder.readEncoder());
     encoder = rotaryEncoder.readEncoder();
+    analogWrite(BlackLight, encoder);
     buzzer();
   }
   if (rotaryEncoder.isEncoderButtonClicked())
   {
     rotary_onButtonClick();
   }
+
+
 }
 void IRAM_ATTR readEncoderISR()
 {
@@ -144,12 +149,13 @@ void IRAM_ATTR readEncoderISR()
 
 void setup()
 {
+  //disableCore0WDT();
   Serial.begin(115200);
   ledcSetup(0, 500, 8);
   sd_en(); // SD使能
   // LCD初始化
   tft.begin();
-  analogWrite(Light_pin, Light);
+  analogWrite(BlackLight, 128);
   tft.setRotation(1);
   tft.fillScreen(c_BL);
   WiFi.begin("Nexus", passhome); // 连接网络
@@ -177,8 +183,8 @@ void setup()
   rotaryEncoder.begin();
   rotaryEncoder.setup(readEncoderISR);
   bool circleValues = false;
-  rotaryEncoder.setBoundaries(0, 24, circleValues);
-  rotaryEncoder.setEncoderValue(4);
+  rotaryEncoder.setBoundaries(0, 240, circleValues);
+  rotaryEncoder.setEncoderValue(128);
   // rotaryEncoder.setAcceleration(250);
   ReadEncoder.attach_ms(50, rotary_loop);
   sht3xd.begin(0x44);
@@ -186,50 +192,14 @@ void setup()
     Serial.println("[ERROR] Cannot start periodic mode");
   drawHomePage();
   uptime.attach(600, update_flag_change);
+  //upTouch.attach_ms(50, GetTouch);
 }
 
 void loop()
 {
-  // get_bat();
-  // get_light();
-  // get_sht30("Periodic Mode", sht3xd.periodicFetchData());
-  // Rtc.Begin();  // DS1307时间读写
-  // if (!Rtc.GetIsRunning()) {
-  //   Serial.println("RTC was not actively running, starting now");
-  //   Rtc.SetIsRunning(true);
-  // }
-  // RtcDateTime now = Rtc.GetDateTime();
-  // Stime.createSprite(240, 180);
-  // Stime.fillScreen(c_BL);
-  // Stime.setTextColor(c_time);
-  // Stime.setFreeFont(DejaVu);
-  // Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 200, 10);
-  // Stime.drawString("This is bat:", 12, 10);
-  // Stime.drawString(String(v_bat), 12, 40);
-  // Stime.drawString("This is Light:", 12, 70);
-  // Stime.drawString(String(Light), 12, 100);
-  // Stime.drawString("This is temp:", 12, 130);
-  // Stime.drawString(String(Temp_in), 12, 160);
-  // Stime.drawString("This is Humidity:", 12, 190);
-  // Stime.drawString(String(Humidity_in), 12, 220);
-  // Stime.drawString("This is encoder:", 12, 250);
-  // Stime.drawString(String(encoder), 12, 280);
-  // Stime.pushSprite(0, 0);
-  // Stime.deleteSprite();
-  // delay(2000);
   drawTime();
   if (update_flag)
   {
-    WiFi.begin(ssid, password); // 连接网络
-    Serial.print("Connecting to ");
-    Serial.print(ssid);
-    while (WiFi.status() != WL_CONNECTED)
-    { // 等待连接
-      delay(500);
-      Serial.print('.');
-    }
-    Serial.println('\n');
-    Serial.println("Connection established!");
     drawHomePage();
     update_flag = 0;
   }
@@ -344,6 +314,7 @@ void drawHomePage()
   temp = Mqtt_Sub["now"]["temp"].as<String>() + "°C ";
   hump = Mqtt_Sub["now"]["humidity"].as<String>() + "% ";
   get_net(classlist, 1);
+    _day = timeClient.getDay();
   String CL = Mqtt_Sub["Single"][_day]["no"].as<String>();
   get_bat();
   tft.fillScreen(c_BL);
@@ -364,8 +335,8 @@ void drawHomePage()
   }
   tft.drawLine(12, 55, 468, 55, c_Line);
   drawSdJpeg(("/64/" + _icon + ".png.jpg").c_str(), 288, 256);
-  tft.drawString(String(Temp_in) + "/" + temp,354,258);
-  tft.drawString(String(Humidity_in) + "/" + hump,354,290);
+  tft.drawString(String(Temp_in) + "/" + temp, 354, 258);
+  tft.drawString(String(Humidity_in) + "/" + hump, 354, 290);
   drawToDo();
 }
 // http请求
@@ -412,6 +383,7 @@ void drawTime()
     Serial.println("RTC was not actively running, starting now");
     Rtc.SetIsRunning(true);
   }
+  // 绘制顶部时间栏
   RtcDateTime now = Rtc.GetDateTime();
   Stime.createSprite(104, 25);
   Stime.setFreeFont(DejaVu);
@@ -419,6 +391,24 @@ void drawTime()
   Stime.setTextColor(c_BL);
   Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 0, 0);
   Stime.pushSprite(188, 5);
+  Stime.deleteSprite();
+  // 更新温湿度
+  get_sht30("Periodic Mode", sht3xd.periodicFetchData());
+  Stime.createSprite(126,62);
+  Stime.fillScreen(c_BL);
+  Stime.setFreeFont(DejaVu);
+  Stime.setTextColor(c_text);
+  Stime.drawString(String(Temp_in) + "/" + temp, 0, 0);
+  Stime.drawString(String(Humidity_in) + "/" + hump, 0, 32);
+  Stime.pushSprite(354, 258);
+  Stime.deleteSprite();
+  // 绘制屏幕时间栏
+  Stime.createSprite(236,50);
+  Stime.setFreeFont(Digi);
+  Stime.fillScreen(c_BL);
+  Stime.setTextColor(c_text);
+  Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 0, 0);
+  Stime.pushSprite(12, 80);
   Stime.deleteSprite();
 }
 void update_flag_change()
@@ -511,7 +501,7 @@ void jpegRender(int xpos, int ypos)
 
   // Fetch data from the file, decode and display
   while (JpegDec.read())
-  {                        // While there is more data in the file
+  { // While there is more data in the file
     pImg = JpegDec.pImage; // Decode a MCU (Minimum Coding Unit, typically a 8x8 or 16x16 pixel block)
 
     // Calculate coordinates of top left corner of current MCU
