@@ -158,7 +158,7 @@ void setup()
   analogWrite(BlackLight, 128);
   tft.setRotation(1);
   tft.fillScreen(c_BL);
-  WiFi.begin("Nexus", passhome); // 连接网络
+  WiFi.begin(ssid, password); // 连接网络
   Serial.print("Connecting to ");
   Serial.print(ssid);
   while (WiFi.status() != WL_CONNECTED)
@@ -193,6 +193,14 @@ void setup()
   drawHomePage();
   uptime.attach(600, update_flag_change);
   //upTouch.attach_ms(50, GetTouch);
+  WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("无线终端和接入点的连接已中断");
+  }
+  else
+  {
+    Serial.println("未能成功断开连接！");
+  }
 }
 
 void loop()
@@ -200,8 +208,29 @@ void loop()
   drawTime();
   if (update_flag)
   {
+    WiFi.begin(ssid, password); // 连接网络
+    Serial.print("Connecting to ");
+    Serial.print(ssid);
+    while (WiFi.status() != WL_CONNECTED)
+    { // 等待连接
+      delay(500);
+      Serial.print('.');
+    }
+    Serial.println('\n');
+    Serial.println("Connection established!");
+    // get_net();
+    Serial.print("IP address:\t");
+    Serial.println(WiFi.localIP());
     drawHomePage();
     update_flag = 0;
+    WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("无线终端和接入点的连接已中断");
+    }
+    else
+    {
+      Serial.println("未能成功断开连接！");
+    }
   }
   delay(990);
 }
@@ -314,7 +343,7 @@ void drawHomePage()
   temp = Mqtt_Sub["now"]["temp"].as<String>() + "°C ";
   hump = Mqtt_Sub["now"]["humidity"].as<String>() + "% ";
   get_net(classlist, 1);
-    _day = timeClient.getDay();
+  _day = timeClient.getDay();
   String CL = Mqtt_Sub["Single"][_day]["no"].as<String>();
   get_bat();
   tft.fillScreen(c_BL);
@@ -394,7 +423,7 @@ void drawTime()
   Stime.deleteSprite();
   // 更新温湿度
   get_sht30("Periodic Mode", sht3xd.periodicFetchData());
-  Stime.createSprite(126,62);
+  Stime.createSprite(126, 62);
   Stime.fillScreen(c_BL);
   Stime.setFreeFont(DejaVu);
   Stime.setTextColor(c_text);
@@ -403,7 +432,7 @@ void drawTime()
   Stime.pushSprite(354, 258);
   Stime.deleteSprite();
   // 绘制屏幕时间栏
-  Stime.createSprite(236,50);
+  Stime.createSprite(236, 50);
   Stime.setFreeFont(Digi);
   Stime.fillScreen(c_BL);
   Stime.setTextColor(c_text);
