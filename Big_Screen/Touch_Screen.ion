@@ -1,4 +1,5 @@
 /*
+  注意引脚切换
   引脚分配：
   {
   LCD:
@@ -29,6 +30,13 @@
   板载SD卡----aaa
   SHT30温湿度----aaa
   }
+    #define TFT_MOSI 23 // In some display driver board, it might be written as "SDA" and so on.
+  #define TFT_SCLK 18
+  #define TFT_CS   15  // Chip select control pin
+  #define TFT_DC   2  // Data Command control pin
+  #define TFT_RST  4  // Reset pin (could connect to Arduino RESET pin)
+  #define TFT_BL   32  // LED back-light
+  #define TFT_BACKLIGHT_ON HIGH
 */
 // 加载库
 #include "msg.h"        //敏感信息
@@ -51,7 +59,6 @@
 #include "FS.h"                   // SD卡读写
 #include "SD.h"
 #include "SPI.h"
-
 // 特殊引脚
 #define WeakFlag 13    // 周选择
 #define sdSelectPin 25 // sd卡
@@ -103,13 +110,14 @@ TFT_eSprite Stime = TFT_eSprite(&tft); // 添加刷新缓存
 WiFiUDP ntpUDP;
 WiFiClientSecure espClient;     // WiFi
 PubSubClient client(espClient); // MQTT
-NTPClient timeClient(ntpUDP, "ntp2.aliyun.com", 8 * 3600, 60000);
+NTPClient timeClient(ntpUDP, "ntp.ntsc.ac.cn", 8 * 3600, 60000);
 RtcDS1307<TwoWire> Rtc(Wire);                                                                                       // DS1302
 ClosedCube_SHT31D sht3xd;                                                                                           // SHT30
 AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(RE_A_PIN, RE_B_PIN, RE_BUTTON_PIN, RE_VCC_PIN, RE_STEPS); // 编码器
 Ticker uptime;                                                                                                      // 更新时间
 Ticker ReadEncoder;                                                                                                 // 编码器轮询
 Ticker upTouch;//获取触摸坐标
+
 // 编码器函数
 void rotary_onButtonClick()
 {
@@ -129,7 +137,7 @@ void rotary_loop()
   // dont print anything unless value changed
   if (rotaryEncoder.encoderChanged())
   {
-    Serial.print("Value: ");
+    Serial.print("Light:");
     Serial.println(rotaryEncoder.readEncoder());
     encoder = rotaryEncoder.readEncoder();
     analogWrite(BlackLight, encoder);
@@ -168,8 +176,9 @@ void setup()
     delay(500);
     Serial.print('.');
     if (i > 40) {
-      Serial.println("联网失败，结束联网");  
-      break;}
+      Serial.println("联网失败，结束联网");
+      break;
+    }
   }
   Serial.println('\n');
   Serial.println("Connection established!");
@@ -219,12 +228,13 @@ void loop()
     Serial.print(ssid);
     while (WiFi.status() != WL_CONNECTED)
     { // 等待连接
-       i++;
+      i++;
       delay(500);
       Serial.print('.');
-       if (i > 40) { 
-        Serial.println("联网失败，结束联网");  
-      break;}
+      if (i > 40) {
+        Serial.println("联网失败，结束联网");
+        break;
+      }
     }
     Serial.println('\n');
     Serial.println("Connection established!");
@@ -287,7 +297,10 @@ void time_update()
   _hour = timeClient.getHours();
   _minute = timeClient.getMinutes();
   _second = timeClient.getSeconds();
-  Rtc._SetDateTime(_second, _minute, _hour);
+  if (_hour != 8) {
+    Serial.println("成功获取时间，准备更新时间。。。。");
+    Rtc._SetDateTime(_second, _minute, _hour);
+  }
 }
 // 获取SHT30温湿度
 void get_sht30(String text, SHT31D result)
@@ -346,7 +359,7 @@ void drawHomePage()
     Rtc.SetIsRunning(true);
   }
   RtcDateTime now = Rtc.GetDateTime();
-  get_net(web_hf, 1);
+  get_net(web_hf2, 1);
   _date = Mqtt_Sub["now"]["obsTime"].as<String>().substring(5, 10);
   String _Day = Mqtt_Sub["now"]["obsTime"].as<String>().substring(8, 10);
   String _icon = Mqtt_Sub["now"]["icon"].as<String>();
@@ -392,6 +405,7 @@ void get_net(String web, bool isdecode)
     if (httpCode == HTTP_CODE_OK)
     {
       String payload = http.getString();
+      Serial.println(payload);
       if (isdecode)
       {
         deserializeJson(Mqtt_Sub, payload);
