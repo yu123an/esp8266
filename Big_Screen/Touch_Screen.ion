@@ -297,7 +297,7 @@ void time_update()
   _hour = timeClient.getHours();
   _minute = timeClient.getMinutes();
   _second = timeClient.getSeconds();
-  if (_hour != 8) {
+  if (_minute != 0) {
     Serial.println("成功获取时间，准备更新时间。。。。");
     Rtc._SetDateTime(_second, _minute, _hour);
   }
