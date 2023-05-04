@@ -1,6 +1,6 @@
 // 注释区
 /*
-{
+  {
   屏幕引脚使用，复制到C:\Users\aa\Documents\Arduino\libraries\TFT_eSPI/User_Setup.h
   #define TFT_MOSI  11  // In some display driver board, it might be written as "SDA" and so on.
   #define TFT_SCLK  12
@@ -9,8 +9,8 @@
   #define TFT_RST   9  // Reset pin (could connect to Arduino RESET pin)
   #define TFT_BL     21  // LED back-light
   #define TFT_BACKLIGHT_ON HIGH
-}
-{
+  }
+  {
   功能列表：
   蜂鸣器----aaa
   充放电----aaa
@@ -24,7 +24,7 @@
   板载扬声器---aaa
   板载麦克风---aaa
   }
-{
+  {
    引脚使用情况：
   IIC:
   sda:5,SCL:4
@@ -41,7 +41,7 @@
   扬声器：
   使能：2;检测：41;DO:40;BAK:39;WS:38
   充电检测:42
-}
+  }
 */
 //加载库
 #include "msg.h"         //敏感信息
@@ -127,7 +127,7 @@ RtcDS1307<TwoWire> Rtc(Wire);                                                   
 ClosedCube_SHT31D sht3xd;                                                                                           // SHT30
 AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(Encoder_A, Encoder_B, Encoder_S, RE_VCC_PIN, RE_STEPS); // 编码器
 Ticker uptime;                                                                                                      // 更新时间
-Ticker ReadEncoder;        
+Ticker ReadEncoder;
 //功能函数---编码器
 void rotary_onButtonClick()
 {
@@ -251,15 +251,15 @@ void get_bat()
 // 获取古诗词
 void drawShici()
 {
-  get_net(web_sc,0);
-  ShiCi.createSprite(280,70);
+  get_net(web_sc, 0);
+  ShiCi.createSprite(280, 70);
   ShiCi.fillScreen(c_BL);
   sd_en();
   ShiCi.loadFont("sisong20", SD); // 加载字体
-  ShiCi.setCursor(0,0);
+  ShiCi.setCursor(5, 5);
   ShiCi.setTextColor(c_text);
   ShiCi.print(JsonMsg);
-  ShiCi.pushSprite(10,250);
+  ShiCi.pushSprite(10, 250);
   ShiCi.deleteSprite();
   SD.end();
 }
@@ -282,7 +282,7 @@ void drawHomePage()
   temp = Mqtt_Sub["now"]["temp"].as<String>() + "°C ";
   hump = Mqtt_Sub["now"]["humidity"].as<String>() + "% ";
   get_net(classlist, 1);
-    _day = timeClient.getDay();
+  _day = timeClient.getDay();
   String CL = Mqtt_Sub["Single"][_day]["no"].as<String>();
   get_bat();
   tft.fillScreen(c_BL);
@@ -295,17 +295,18 @@ void drawHomePage()
   tft.drawString(String(v_bat), 416, 5);
   tft.setTextColor(c_text);
   // 绘制课程表
+  tft.drawLine(12, 55, 468, 55, c_Line);
   tft.drawString(_Day + " A1 A2 A3 A4 B1 B2 B3 B4 C1 C2 C3", 12, 35);
   tft.drawString(CL, 12, 57);
   for (int i = 0; i < 11; i++)
   {
     tft.drawLine(26 + 12 + 6 + 39 * i, 35, 26 + 12 + 6 + 39 * i, 70, c_Line);
   }
-  tft.drawLine(12, 55, 468, 55, c_Line);
+
   drawSdJpeg(("/64/" + _icon + ".png.jpg").c_str(), 288, 256);
   tft.drawString(String(Temp_in) + "/" + temp, 354, 258);
   tft.drawString(String(Humidity_in) + "/" + hump, 354, 290);
-  drawToDo();
+  // drawToDo();
   drawShici();
 }
 // http请求
@@ -363,7 +364,7 @@ void drawTime()
   Stime.deleteSprite();
   // 更新温湿度
   get_sht30("Periodic Mode", sht3xd.periodicFetchData());
-  Stime.createSprite(126,62);
+  Stime.createSprite(126, 62);
   Stime.fillScreen(c_BL);
   Stime.setFreeFont(DejaVu);
   Stime.setTextColor(c_text);
@@ -372,7 +373,7 @@ void drawTime()
   Stime.pushSprite(354, 258);
   Stime.deleteSprite();
   // 绘制屏幕时间栏
-  Stime.createSprite(236,50);
+  Stime.createSprite(236, 50);
   Stime.setFreeFont(Digi);
   Stime.fillScreen(c_BL);
   Stime.setTextColor(c_text);
@@ -386,11 +387,13 @@ void update_flag_change()
 }
 void drawToDo()
 {
-  tft.fillRect(288, 80, 192, 176, c_BL);
+  sd_en();
   get_net(todolist, 1);
   int totle = Mqtt_Sub["num"].as<int>();
-  tft.loadFont(fontname, SD); // 加载字体
-  tft.setCursor(288, 85);
+  tft.loadFont("sisong20", SD); // 加载字体
+  tft.setCursor(288, 85); \
+  tft.fillRect(288, 80, 192, 176, c_BL);
+  tft.setTextColor(c_text);
   tft.print("今日待办：");
   for (int i = 0; i < totle; i++)
   {
@@ -540,16 +543,16 @@ void jpegInfo()
   Serial.println("");
 }
 void setup() {
-  Wire.begin(IIC_SDA,IIC_SCL);//IIC初始化
-  pinMode(I2S_EN,OUTPUT);
-  pinMode(I2S_EN,0);
+  Wire.begin(IIC_SDA, IIC_SCL); //IIC初始化
+  pinMode(I2S_EN, OUTPUT);
+  pinMode(I2S_EN, 0);
   // pinMode(I2S_DO,OUTPUT);
   // pinMode(I2S_DO,0);
   // pinMode(I2S_BAK,OUTPUT);
   // pinMode(I2S_BAK,0);
   // pinMode(I2S_WS,OUTPUT);
   // pinMode(I2S_WS,0);
-  // disableCore0WDT();//应对供电不足的问题
+  disableCore0WDT();//应对供电不足的问题
   Serial.begin(115200);
   ledcSetup(0, 500, 8);
   sd_en(); // SD使能
@@ -596,7 +599,7 @@ void setup() {
 }
 
 void loop() {
- drawTime();
+  drawTime();
   if (update_flag)
   {
     drawHomePage();
