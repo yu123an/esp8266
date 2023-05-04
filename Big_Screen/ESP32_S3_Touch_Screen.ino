@@ -251,17 +251,27 @@ void get_bat()
 // 获取古诗词
 void drawShici()
 {
-  get_net(web_sc, 0);
-  ShiCi.createSprite(280, 70);
-  ShiCi.fillScreen(c_BL);
-  sd_en();
-  ShiCi.loadFont("sisong20", SD); // 加载字体
-  ShiCi.setCursor(5, 5);
-  ShiCi.setTextColor(c_text);
-  ShiCi.print(JsonMsg);
-  ShiCi.pushSprite(10, 250);
-  ShiCi.deleteSprite();
-  SD.end();
+  get_net(web_sc, 1);
+  // ShiCi.createSprite(280, 70);
+  // ShiCi.fillScreen(c_BL);
+  // //sd_en();
+  // ShiCi.loadFont("sisong20", SD); // 加载字体
+  // ShiCi.setCursor(5, 5);
+  // ShiCi.setTextColor(c_text);
+  // ShiCi.print(JsonMsg);
+  // ShiCi.pushSprite(10, 250);
+  // ShiCi.unloadFont();
+  // ShiCi.deleteSprite();
+  Stime.createSprite(280, 70);
+  Stime.fillScreen(c_BL);
+  Stime.loadFont("sisong20", SD); // 加载字体
+  Stime.setCursor(0, 5);
+  Stime.setTextColor(c_text);
+  Stime.print(Mqtt_Sub["content"].as<String>());
+  Stime.pushSprite(10, 250);
+  Stime.unloadFont();
+  Stime.deleteSprite();
+  //SD.end();
 }
 // 绘制主屏幕
 void drawHomePage()
@@ -298,7 +308,7 @@ void drawHomePage()
   tft.drawLine(12, 55, 468, 55, c_Line);
   tft.drawString(_Day + " A1 A2 A3 A4 B1 B2 B3 B4 C1 C2 C3", 12, 35);
   tft.drawString(CL, 12, 57);
-  for (int i = 0; i < 11; i++)
+  for (int i = 0; i < 12; i++)//此处有改动11->12
   {
     tft.drawLine(26 + 12 + 6 + 39 * i, 35, 26 + 12 + 6 + 39 * i, 70, c_Line);
   }
@@ -306,8 +316,9 @@ void drawHomePage()
   drawSdJpeg(("/64/" + _icon + ".png.jpg").c_str(), 288, 256);
   tft.drawString(String(Temp_in) + "/" + temp, 354, 258);
   tft.drawString(String(Humidity_in) + "/" + hump, 354, 290);
-  // drawToDo();
   drawShici();
+ // drawToDo();
+ SD.end();
 }
 // http请求
 void get_net(String web, bool isdecode)
@@ -385,13 +396,26 @@ void update_flag_change()
 {
   update_flag = 1;
 }
-void drawToDo()
+void drawToDo(){
+ get_net(todolist, 1);
+ int totle = Mqtt_Sub["num"].as<int>();
+  ShiCi.createSprite(192,176);
+  ShiCi.fillScreen(c_BL);
+  ShiCi.loadFont("sisong20",SD);
+  ShiCi.setTextColor(c_text);
+  ShiCi.setCursor(0,5);
+  ShiCi.print("今日待办：");
+  ShiCi.pushSprite(288,80);
+  ShiCi.unloadFont();
+  ShiCi.deleteSprite();
+}
+void _drawToDo()
 {
-  sd_en();
+  //sd_en();
   get_net(todolist, 1);
   int totle = Mqtt_Sub["num"].as<int>();
-  tft.loadFont("sisong20", SD); // 加载字体
-  tft.setCursor(288, 85); \
+  tft.loadFont("siyuan20", SD); // 加载字体
+  tft.setCursor(288, 85); 
   tft.fillRect(288, 80, 192, 176, c_BL);
   tft.setTextColor(c_text);
   tft.print("今日待办：");
@@ -401,7 +425,7 @@ void drawToDo()
     tft.print(String(i + 1) + "." + Mqtt_Sub["list"][i]["no"].as<String>());
   }
   tft.unloadFont();
-  SD.end();
+  //SD.end();
 }
 // JPG 绘制
 void drawSdJpeg(const char *filename, int xpos, int ypos)
@@ -543,19 +567,19 @@ void jpegInfo()
   Serial.println("");
 }
 void setup() {
-  Wire.begin(IIC_SDA, IIC_SCL); //IIC初始化
-  pinMode(I2S_EN, OUTPUT);
-  pinMode(I2S_EN, 0);
+  // pinMode(I2S_EN, OUTPUT);
+  // pinMode(I2S_EN, 0);
   // pinMode(I2S_DO,OUTPUT);
   // pinMode(I2S_DO,0);
   // pinMode(I2S_BAK,OUTPUT);
   // pinMode(I2S_BAK,0);
   // pinMode(I2S_WS,OUTPUT);
   // pinMode(I2S_WS,0);
-  disableCore0WDT();//应对供电不足的问题
+  //disableCore0WDT();//应对供电不足的问题
   Serial.begin(115200);
   ledcSetup(0, 500, 8);
   sd_en(); // SD使能
+  Wire.begin(IIC_SDA, IIC_SCL); //IIC初始化
   // LCD初始化
   tft.begin();
   analogWrite(BLPin, 128);
