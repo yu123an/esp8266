@@ -308,7 +308,7 @@ void drawHomePage()
   tft.drawLine(12, 55, 468, 55, c_Line);
   tft.drawString(_Day + " A1 A2 A3 A4 B1 B2 B3 B4 C1 C2 C3", 12, 35);
   tft.drawString(CL, 12, 57);
-  for (int i = 0; i < 12; i++)//此处有改动11->12
+  for (int i = 0; i < 11; i++)
   {
     tft.drawLine(26 + 12 + 6 + 39 * i, 35, 26 + 12 + 6 + 39 * i, 70, c_Line);
   }
@@ -317,7 +317,7 @@ void drawHomePage()
   tft.drawString(String(Temp_in) + "/" + temp, 354, 258);
   tft.drawString(String(Humidity_in) + "/" + hump, 354, 290);
   drawShici();
- // drawToDo();
+  drawToDo();
  SD.end();
 }
 // http请求
@@ -405,6 +405,11 @@ void drawToDo(){
   ShiCi.setTextColor(c_text);
   ShiCi.setCursor(0,5);
   ShiCi.print("今日待办：");
+   for (int i = 0; i < totle; i++)
+  {
+    ShiCi.setCursor(0, 35 + i * 30);
+    ShiCi.print(String(i + 1) + "." + Mqtt_Sub["list"][i]["no"].as<String>());
+  }
   ShiCi.pushSprite(288,80);
   ShiCi.unloadFont();
   ShiCi.deleteSprite();
