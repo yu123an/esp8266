@@ -288,7 +288,7 @@ void drawHomePage() {
   tft.setTextColor(c_BL);
   // 绘制顶部栏信息
   tft.drawString(_date, 12, 5);
-  tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 188, 5);
+  tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10), 188 + 26, 5);
   //绘制电量与充电图标
   if (digitalRead(Charge)) {
     tft.drawString(String(analogReadMilliVolts(Battery) / 50) + "V", 416, 5);  //满电状态
@@ -344,13 +344,15 @@ void drawTime() {
   }
   // 绘制顶部时间栏
   RtcDateTime now = Rtc.GetDateTime();
-  Stime.createSprite(104, 25);
+  if(now.Second() == 0){
+  Stime.createSprite(65, 25);
   Stime.setFreeFont(DejaVu);
   Stime.fillScreen(c_text);
   Stime.setTextColor(c_BL);
-  Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 0, 0);
-  Stime.pushSprite(188, 5);
+  Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10), 0, 0);
+  Stime.pushSprite(188 + 26, 5);
   Stime.deleteSprite();
+  }
   // 更新温湿度
   get_sht30("Periodic Mode", sht3xd.periodicFetchData());
   Stime.createSprite(126, 62);
