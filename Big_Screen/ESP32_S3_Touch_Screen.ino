@@ -118,6 +118,11 @@ String JsonMsg;                                     // json串解析
 char msg[MSG_BUFFER_SIZE];
 StaticJsonDocument<2000> Mqtt_Sub;
 unsigned long lastMsg = 0;
+// 缓存buffer
+StaticJsonDocument<1000> TodoBuffer;
+StaticJsonDocument<500> ShiciBuffer;
+StaticJsonDocument<2000> WeatherBuffer;
+StaticJsonDocument<1000> ClassBuffer;
 
 //实例化类
 TFT_eSPI tft = TFT_eSPI();              // TFT显示
@@ -228,7 +233,10 @@ void get_bat() {
 //功能函数---功能类
 // 获取古诗词
 void drawShici() {
+  if (WiFi.status() == WL_CONNECTED) {
   get_net(web_sc, 1);
+  ShiciBuffer = Mqtt_Sub;
+  }
   // ShiCi.createSprite(280, 70);
   // ShiCi.fillScreen(c_BL);
   // //sd_en();
@@ -244,7 +252,7 @@ void drawShici() {
   Stime.loadFont(fontname, SD);  // 加载字体
   Stime.setCursor(0, 5);
   Stime.setTextColor(c_text);
-  Stime.print(Mqtt_Sub["content"].as<String>());
+  Stime.print(ShiciBuffer["content"].as<String>());
   Stime.pushSprite(10, 250);
   Stime.unloadFont();
   Stime.deleteSprite();
@@ -260,15 +268,19 @@ void drawHomePage() {
     Rtc.SetIsRunning(true);
   }
   RtcDateTime now = Rtc.GetDateTime();
+   if (WiFi.status() == WL_CONNECTED) {
   get_net(web_hf, 1);
-  _date = Mqtt_Sub["now"]["obsTime"].as<String>().substring(5, 10);
-  String _Day = Mqtt_Sub["now"]["obsTime"].as<String>().substring(8, 10);
-  String _icon = Mqtt_Sub["now"]["icon"].as<String>();
-  temp = Mqtt_Sub["now"]["temp"].as<String>() + "°C ";
-  hump = Mqtt_Sub["now"]["humidity"].as<String>() + "% ";
+  WeatherBuffer = Mqtt_Sub ; 
   get_net(classlist, 1);
+  ClassBuffer = Mqtt_Sub;
+  }
+  _date = WeatherBuffer["now"]["obsTime"].as<String>().substring(5, 10);
+  String _Day = WeatherBuffer["now"]["obsTime"].as<String>().substring(8, 10);
+  String _icon = WeatherBuffer["now"]["icon"].as<String>();
+  temp = WeatherBuffer["now"]["temp"].as<String>() + "°C ";
+  hump = WeatherBuffer["now"]["humidity"].as<String>() + "% ";
   _day = timeClient.getDay();
-  String CL = Mqtt_Sub["Single"][_day]["no"].as<String>();
+  String CL = ClassBuffer["Single"][_day]["no"].as<String>();
   // get_bat();
   tft.fillScreen(c_BL);
   tft.fillRect(0, 0, 480, 30, c_text);  // 顶部栏
@@ -279,9 +291,9 @@ void drawHomePage() {
   tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10) + ":" + String(now.Second() / 10) + String(now.Second() % 10), 188, 5);
   //绘制电量与充电图标
   if (digitalRead(Charge)) {
-    tft.drawString(String(analogReadMilliVolts(Battery) / 50) + "V", 416, 5);  //有改动
+    tft.drawString(String(analogReadMilliVolts(Battery) / 50) + "V", 416, 5);  //满电状态
   } else {
-    tft.drawString(String(analogReadMilliVolts(Battery) / 50) + "C", 416, 5);
+    tft.drawString(String(analogReadMilliVolts(Battery) / 50) + "C", 416, 5);//充电或者非满电状态
   }
   tft.setTextColor(c_text);
   // 绘制课程表
@@ -362,8 +374,11 @@ void update_flag_change() {
   update_flag = 1;
 }
 void drawToDo() {
+   if (WiFi.status() == WL_CONNECTED) {
   get_net(todolist, 1);
-  int totle = Mqtt_Sub["num"].as<int>();
+  TodoBuffer = Mqtt_Sub ;
+   }
+  int totle = TodoBuffer["num"].as<int>();
   ShiCi.createSprite(192, 176);
   ShiCi.fillScreen(c_BL);
   ShiCi.loadFont(fontname, SD);
@@ -372,27 +387,11 @@ void drawToDo() {
   ShiCi.print("今日待办：");
   for (int i = 0; i < totle; i++) {
     ShiCi.setCursor(0, 35 + i * 30);
-    ShiCi.print(String(i + 1) + "." + Mqtt_Sub["list"][i]["no"].as<String>());
+    ShiCi.print(String(i + 1) + "." + TodoBuffer["list"][i]["no"].as<String>());
   }
   ShiCi.pushSprite(288, 80);
   ShiCi.unloadFont();
   ShiCi.deleteSprite();
-}
-void _drawToDo() {
-  //sd_en();
-  get_net(todolist, 1);
-  int totle = Mqtt_Sub["num"].as<int>();
-  tft.loadFont(fontname, SD);  // 加载字体
-  tft.setCursor(288, 85);
-  tft.fillRect(288, 80, 192, 176, c_BL);
-  tft.setTextColor(c_text);
-  tft.print("今日待办：");
-  for (int i = 0; i < totle; i++) {
-    tft.setCursor(288, 115 + i * 30);
-    tft.print(String(i + 1) + "." + Mqtt_Sub["list"][i]["no"].as<String>());
-  }
-  tft.unloadFont();
-  //SD.end();
 }
 // JPG 绘制
 void drawSdJpeg(const char *filename, int xpos, int ypos) {
@@ -532,6 +531,8 @@ void setup() {
   // pinMode(I2S_WS,OUTPUT);
   // pinMode(I2S_WS,0);
   //disableCore0WDT();//应对供电不足的问题
+  esp_sleep_enable_timer_wakeup(60000000); //60 seconds
+  // 上面为轻度休眠，正在调试，可以注释掉
   Serial.begin(115200);
   ledcSetup(0, 500, 8);
   pinMode(Charge, INPUT);
@@ -592,6 +593,12 @@ void setup() {
 
 void loop() {
   drawTime();
+  //测试轻度睡眠模式
+  //Serial.println("准备进入轻度休眠");
+  // esp_sleep_enable_timer_wakeup(60000000); //60 seconds
+  //esp_light_sleep_start();
+  //Serial.println("如果你看到了，说明没能进入轻度休眠模式");
+  // 以上为轻度休眠测试
  if (update_flag)
   {
     int i = 0;
