@@ -43,27 +43,28 @@
   充电检测:42
   }
 */
-//加载库
-#include "msg.h"         //敏感信息
-#include <NTPClient.h>   //网络校时
-#include <HTTPClient.h>  //http请求
-#include "TFT_eSPI.h"    //屏幕驱动
+// 加载库
+#include "msg.h"        //敏感信息
+#include <NTPClient.h>  //网络校时
+#include <HTTPClient.h> //http请求
+#include "TFT_eSPI.h"   //屏幕驱动
 #include <RtcDS1307.h>
-#include <Wire.h>     //DS1307驱动
-#include <WiFiUdp.h>  //wifi支持
+#include <Wire.h>    //DS1307驱动
+#include <WiFiUdp.h> //wifi支持
 #include <WiFi.h>
-#include <ArduinoJson.h>           //JSON解析
-#include <WiFiClientSecure.h>      //https请求
-#include "OneButton.h"             //按钮启用
-#include <Ticker.h>                //定时任务
-#include "ClosedCube_SHT31D.h"     //SHT30
-#include "AiEsp32RotaryEncoder.h"  //旋转编码器
-#include <JPEGDecoder.h>           //加载jpg图片
-#include <EEPROM.h>                // 片上EEPROM
-#include "FS.h"                    // SD卡读写
+#include <ArduinoJson.h>          //JSON解析
+#include <WiFiClientSecure.h>     //https请求
+#include "OneButton.h"            //按钮启用
+#include <Ticker.h>               //定时任务
+#include "ClosedCube_SHT31D.h"    //SHT30
+#include "AiEsp32RotaryEncoder.h" //旋转编码器
+#include <JPEGDecoder.h>          //加载jpg图片
+#include <EEPROM.h>               // 片上EEPROM
+#include "FS.h"                   // SD卡读写
 #include "SD.h"
 #include "SPI.h"
-//特殊引脚
+#include "Audio.h" //I2S音频
+// 特殊引脚
 #define sdSelectPin 10
 #define IIC_SDA 5
 #define IIC_SCL 4
@@ -87,33 +88,33 @@
 #define I2S_DO 40
 #define I2S_BAK 39
 #define I2S_WS 38
-//颜色列表
+// 颜色列表
 #define c_BL 0xFFFF
 #define c_Line tft.color24to16(0x426666)
 #define c_text tft.color24to16(0x003371)
 #define c_time tft.color24to16(0x333631)
 
-//字体列表
-#define Digi &DS_DIGI32pt7b          // 数码管字体
-#define DejaVu &DejaVu_Sans_Mono_20  // 等宽字体
-#define PAPL &PAPL_125pt7b           // 等宽数字
+// 字体列表
+#define Digi &DS_DIGI32pt7b         // 数码管字体
+#define DejaVu &DejaVu_Sans_Mono_20 // 等宽字体
+#define PAPL &PAPL_125pt7b          // 等宽数字
 // String fontname = "siyuan20";  //思源宋体
 // String fontname = "fangzheng20";  //方正幼黑
 // String fontname = "sisong20";  //思源宋体
 // String fontname = "FZFWZhuZiAYuanJWR20";  // 方正细金陵简体
 // String fontname = "kangxi20";//康熙字体
 // String fontname = "SourceHanSerifSC-Light20";
-//String fontname = "huawenkaiti20";//华文楷体
-String fontname = "SourceHanSerifSC-Light20";//思源宋体
-//变量列表
-String temp, hump, windDir, wind, _weather, _date;  // 天气状况
-int Temp_in, Humidity_in;                           // 室内温湿度
-int _day, _hour, _minute, _second;                  // 时间更新
-int update_flag = 0;                                // 更新标志位
-int Light = 127;                                    // 亮度控制
-int encoder = 127;                                  // 编码器
-float v_bat = 0;                                    // 电量检测
-String JsonMsg;                                     // json串解析
+// String fontname = "huawenkaiti20";//华文楷体
+String fontname = "SourceHanSerifSC-Light20"; // 思源宋体
+// 变量列表
+String temp, hump, windDir, wind, _weather, _date; // 天气状况
+int Temp_in, Humidity_in;                          // 室内温湿度
+int _day, _hour, _minute, _second;                 // 时间更新
+int update_flag = 0;                               // 更新标志位
+int Light = 127;                                   // 亮度控制
+int encoder = 127;                                 // 编码器
+float v_bat = 0;                                   // 电量检测
+String JsonMsg;                                    // json串解析
 #define MSG_BUFFER_SIZE (2000)
 char msg[MSG_BUFFER_SIZE];
 StaticJsonDocument<2000> Mqtt_Sub;
@@ -124,23 +125,26 @@ StaticJsonDocument<500> ShiciBuffer;
 StaticJsonDocument<2000> WeatherBuffer;
 StaticJsonDocument<1000> ClassBuffer;
 
-//实例化类
-TFT_eSPI tft = TFT_eSPI();              // TFT显示
-TFT_eSprite Stime = TFT_eSprite(&tft);  // 添加刷新缓存
-TFT_eSprite ShiCi = TFT_eSprite(&tft);  // 添加刷新缓存
+// 实例化类
+TFT_eSPI tft = TFT_eSPI();             // TFT显示
+TFT_eSprite Stime = TFT_eSprite(&tft); // 添加刷新缓存
+TFT_eSprite ShiCi = TFT_eSprite(&tft); // 添加刷新缓存
 WiFiUDP ntpUDP;
-WiFiClientSecure espClient;  // WiFi
+WiFiClientSecure espClient; // WiFi
 NTPClient timeClient(ntpUDP, "ntp.ntsc.ac.cn", 8 * 3600, 60000);
-RtcDS1307<TwoWire> Rtc(Wire);                                                                                      // DS1302
-ClosedCube_SHT31D sht3xd;                                                                                          // SHT30
-AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(Encoder_A, Encoder_B, Encoder_S, RE_VCC_PIN, RE_STEPS);  // 编码器
-Ticker uptime;                                                                                                     // 更新时间
+RtcDS1307<TwoWire> Rtc(Wire);                                                                                     // DS1302
+ClosedCube_SHT31D sht3xd;                                                                                         // SHT30
+AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(Encoder_A, Encoder_B, Encoder_S, RE_VCC_PIN, RE_STEPS); // 编码器
+Ticker uptime;                                                                                                    // 更新时间
 Ticker ReadEncoder;
-//功能函数---编码器
-void rotary_onButtonClick() {
+Audio audio; // I2S播放器
+// 功能函数---编码器
+void rotary_onButtonClick()
+{
   static unsigned long lastTimePressed = 0;
   // ignore multiple press in that time milliseconds
-  if (millis() - lastTimePressed < 500) {
+  if (millis() - lastTimePressed < 500)
+  {
     return;
   }
   lastTimePressed = millis();
@@ -148,94 +152,119 @@ void rotary_onButtonClick() {
   Serial.print(millis());
   Serial.println(" milliseconds after restart");
 }
-void rotary_loop() {
+void rotary_loop()
+{
   // dont print anything unless value changed
-  if (rotaryEncoder.encoderChanged()) {
+  if (rotaryEncoder.encoderChanged())
+  {
     Serial.print("Value: ");
     Serial.println(rotaryEncoder.readEncoder());
     encoder = rotaryEncoder.readEncoder();
     analogWrite(BLPin, encoder);
     buzzer();
   }
-  if (rotaryEncoder.isEncoderButtonClicked()) {
+  if (rotaryEncoder.isEncoderButtonClicked())
+  {
     rotary_onButtonClick();
   }
 }
-void IRAM_ATTR readEncoderISR() {
+void IRAM_ATTR readEncoderISR()
+{
   rotaryEncoder.readEncoder_ISR();
 }
 // 功能函数---传感器
-//TF卡使能
-void sd_en() {
-  if (!SD.begin(sdSelectPin)) {
+// TF卡使能
+void sd_en()
+{
+  if (!SD.begin(sdSelectPin))
+  {
     Serial.println("Card Mount Failed");
     return;
   }
   uint8_t cardType = SD.cardType();
 
-  if (cardType == CARD_NONE) {
+  if (cardType == CARD_NONE)
+  {
     Serial.println("No SD card attached");
     return;
   }
   Serial.print("SD Card Type: ");
-  if (cardType == CARD_MMC) {
+  if (cardType == CARD_MMC)
+  {
     Serial.println("MMC");
-  } else if (cardType == CARD_SD) {
+  }
+  else if (cardType == CARD_SD)
+  {
     Serial.println("SDSC");
-  } else if (cardType == CARD_SDHC) {
+  }
+  else if (cardType == CARD_SDHC)
+  {
     Serial.println("SDHC");
-  } else {
+  }
+  else
+  {
     Serial.println("UNKNOWN");
   }
 }
 // 更新时间
-void time_update() {
+void time_update()
+{
   timeClient.begin();
   timeClient.update();
   _day = timeClient.getDay();
   _hour = timeClient.getHours();
   _minute = timeClient.getMinutes();
   _second = timeClient.getSeconds();
-  if (_minute != 0) {
+  if (_minute != 0)
+  {
     Serial.println("成功获取时间，准备更新时间。。。。");
     Rtc._SetDateTime(_second, _minute, _hour);
   }
 }
 // 获取SHT30温湿度
-void get_sht30(String text, SHT31D result) {
-  if (result.error == SHT3XD_NO_ERROR) {
+void get_sht30(String text, SHT31D result)
+{
+  if (result.error == SHT3XD_NO_ERROR)
+  {
     Temp_in = result.t;
     Humidity_in = result.rh;
-  } else {
+  }
+  else
+  {
     Serial.print(text);
     Serial.print(": [ERROR] Code #");
     Serial.println(result.error);
   }
 }
 // 蜂鸣器
-void buzzer() {
-  ledcAttachPin(Buzzer, 0);  // The piezo speaker is attached to GPIO26
+void buzzer()
+{
+  ledcAttachPin(Buzzer, 0); // The piezo speaker is attached to GPIO26
   ledcWriteTone(0, 1000);
   delay(150);
   ledcDetachPin(Buzzer);
   ledcWrite(0, 0);
 }
 // 获取电量
-void get_bat() {
+void get_bat()
+{
   analogReadResolution(12);
   double _bat = 0;
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < 8; i++)
+  {
     _bat += analogRead(Battery);
   }
   //_bat > 3;
   v_bat = _bat * 2 / 4096 / 8;
 }
-//功能函数---功能类
-// 获取古诗词
-void drawShici() {
-  if (WiFi.status() == WL_CONNECTED) {
-  get_net(web_sc, 1);
-  ShiciBuffer = Mqtt_Sub;
+// 功能函数---功能类
+//  获取古诗词
+void drawShici()
+{
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    get_net(web_sc, 1);
+    ShiciBuffer = Mqtt_Sub;
   }
   // ShiCi.createSprite(280, 70);
   // ShiCi.fillScreen(c_BL);
@@ -249,30 +278,33 @@ void drawShici() {
   // ShiCi.deleteSprite();
   Stime.createSprite(280, 70);
   Stime.fillScreen(c_BL);
-  Stime.loadFont(fontname, SD);  // 加载字体
+  Stime.loadFont(fontname, SD); // 加载字体
   Stime.setCursor(0, 5);
   Stime.setTextColor(c_text);
   Stime.print(ShiciBuffer["content"].as<String>());
   Stime.pushSprite(10, 250);
   Stime.unloadFont();
   Stime.deleteSprite();
-  //SD.end();
+  // SD.end();
 }
 // 绘制主屏幕
-void drawHomePage() {
+void drawHomePage()
+{
   sd_en();
   get_sht30("Periodic Mode", sht3xd.periodicFetchData());
-  Rtc.Begin();  // DS1307时间读写
-  if (!Rtc.GetIsRunning()) {
+  Rtc.Begin(); // DS1307时间读写
+  if (!Rtc.GetIsRunning())
+  {
     Serial.println("RTC was not actively running, starting now");
     Rtc.SetIsRunning(true);
   }
   RtcDateTime now = Rtc.GetDateTime();
-   if (WiFi.status() == WL_CONNECTED) {
-  get_net(web_hf, 1);
-  WeatherBuffer = Mqtt_Sub ; 
-  get_net(classlist, 1);
-  ClassBuffer = Mqtt_Sub;
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    get_net(web_hf, 1);
+    WeatherBuffer = Mqtt_Sub;
+    get_net(classlist, 1);
+    ClassBuffer = Mqtt_Sub;
   }
   _date = WeatherBuffer["now"]["obsTime"].as<String>().substring(5, 10);
   String _Day = WeatherBuffer["now"]["obsTime"].as<String>().substring(8, 10);
@@ -283,24 +315,28 @@ void drawHomePage() {
   String CL = ClassBuffer["Single"][_day]["no"].as<String>();
   // get_bat();
   tft.fillScreen(c_BL);
-  tft.fillRect(0, 0, 480, 30, c_text);  // 顶部栏
+  tft.fillRect(0, 0, 480, 30, c_text); // 顶部栏
   tft.setFreeFont(DejaVu);
   tft.setTextColor(c_BL);
   // 绘制顶部栏信息
   tft.drawString(_date, 12, 5);
   tft.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10), 188 + 26, 5);
-  //绘制电量与充电图标
-  if (digitalRead(Charge)) {
-    tft.drawString(String(analogReadMilliVolts(Battery) / 50) + "V", 416, 5);  //满电状态
-  } else {
-    tft.drawString(String(analogReadMilliVolts(Battery) / 50) + "C", 416, 5);//充电或者非满电状态
+  // 绘制电量与充电图标
+  if (digitalRead(Charge))
+  {
+    tft.drawString(String(analogReadMilliVolts(Battery) / 50) + "V", 416, 5); // 满电状态
+  }
+  else
+  {
+    tft.drawString(String(analogReadMilliVolts(Battery) / 50) + "C", 416, 5); // 充电或者非满电状态
   }
   tft.setTextColor(c_text);
   // 绘制课程表
   tft.drawLine(12, 55, 468, 55, c_Line);
   tft.drawString(_Day + " A1 A2 A3 A4 B1 B2 B3 B4 C1 C2 C3", 12, 35);
   tft.drawString(CL, 12, 57);
-  for (int i = 0; i < 11; i++) {
+  for (int i = 0; i < 11; i++)
+  {
     tft.drawLine(26 + 12 + 6 + 39 * i, 35, 26 + 12 + 6 + 39 * i, 70, c_Line);
   }
   drawSdJpeg(("/64/" + _icon + ".png.jpg").c_str(), 288, 256);
@@ -309,49 +345,69 @@ void drawHomePage() {
   drawShici();
   drawToDo();
   SD.end();
+  //以下为I2S播放音乐
+  if (WiFi.status() == WL_CONNECTED){
+  digitalWrite(I2S_EN,1);
+  String music_url = "https://music.163.com/song/media/outer/url?id=26902863.mp3";
+  audio.connecttohost(music_url.c_str());
+  digitalWrite(I2S_EN,0);
+  }
 }
 // http请求
-void get_net(String web, bool isdecode) {
+void get_net(String web, bool isdecode)
+{
   HTTPClient http;
-  if (http.begin(web)) {
+  if (http.begin(web))
+  {
     Serial.println("HTTPclient setUp done!");
   }
   int httpCode = http.GET();
-  if (httpCode > 0) {
-    if (httpCode == HTTP_CODE_OK) {
+  if (httpCode > 0)
+  {
+    if (httpCode == HTTP_CODE_OK)
+    {
       String payload = http.getString();
-      if (isdecode) {
+      if (isdecode)
+      {
         deserializeJson(Mqtt_Sub, payload);
-      } else {
+      }
+      else
+      {
         JsonMsg = payload;
       }
     }
-  } else {
+  }
+  else
+  {
 
     Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
   }
   http.end();
 }
 // http字符串解析
-void JsonEecoed(String json) {
+void JsonEecoed(String json)
+{
   deserializeJson(Mqtt_Sub, json);
 }
-void drawTime() {
-  Rtc.Begin();  // DS1307时间读写
-  if (!Rtc.GetIsRunning()) {
+void drawTime()
+{
+  Rtc.Begin(); // DS1307时间读写
+  if (!Rtc.GetIsRunning())
+  {
     Serial.println("RTC was not actively running, starting now");
     Rtc.SetIsRunning(true);
   }
   // 绘制顶部时间栏
   RtcDateTime now = Rtc.GetDateTime();
-  if(now.Second() == 0){
-  Stime.createSprite(65, 25);
-  Stime.setFreeFont(DejaVu);
-  Stime.fillScreen(c_text);
-  Stime.setTextColor(c_BL);
-  Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10), 0, 0);
-  Stime.pushSprite(188 + 26, 5);
-  Stime.deleteSprite();
+  if (now.Second() == 0)
+  {
+    Stime.createSprite(65, 25);
+    Stime.setFreeFont(DejaVu);
+    Stime.fillScreen(c_text);
+    Stime.setTextColor(c_BL);
+    Stime.drawString(String(now.Hour() / 10) + String(now.Hour() % 10) + ":" + String(now.Minute() / 10) + String(now.Minute() % 10), 0, 0);
+    Stime.pushSprite(188 + 26, 5);
+    Stime.deleteSprite();
   }
   // 更新温湿度
   get_sht30("Periodic Mode", sht3xd.periodicFetchData());
@@ -372,14 +428,17 @@ void drawTime() {
   Stime.pushSprite(12, 80);
   Stime.deleteSprite();
 }
-void update_flag_change() {
+void update_flag_change()
+{
   update_flag = 1;
 }
-void drawToDo() {
-   if (WiFi.status() == WL_CONNECTED) {
-  get_net(todolist, 1);
-  TodoBuffer = Mqtt_Sub ;
-   }
+void drawToDo()
+{
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    get_net(todolist, 1);
+    TodoBuffer = Mqtt_Sub;
+  }
   int totle = TodoBuffer["num"].as<int>();
   ShiCi.createSprite(192, 176);
   ShiCi.fillScreen(c_BL);
@@ -387,7 +446,8 @@ void drawToDo() {
   ShiCi.setTextColor(c_text);
   ShiCi.setCursor(0, 5);
   ShiCi.print("今日待办：");
-  for (int i = 0; i < totle; i++) {
+  for (int i = 0; i < totle; i++)
+  {
     ShiCi.setCursor(0, 35 + i * 30);
     ShiCi.print(String(i + 1) + "." + TodoBuffer["list"][i]["no"].as<String>());
   }
@@ -396,12 +456,14 @@ void drawToDo() {
   ShiCi.deleteSprite();
 }
 // JPG 绘制
-void drawSdJpeg(const char *filename, int xpos, int ypos) {
+void drawSdJpeg(const char *filename, int xpos, int ypos)
+{
 
   // Open the named file (the Jpeg decoder library will close it)
-  File jpegFile = SD.open(filename, FILE_READ);  // or, file handle reference for SD library
+  File jpegFile = SD.open(filename, FILE_READ); // or, file handle reference for SD library
 
-  if (!jpegFile) {
+  if (!jpegFile)
+  {
     Serial.print("ERROR: File \"");
     Serial.print(filename);
     Serial.println("\" not found!");
@@ -414,19 +476,23 @@ void drawSdJpeg(const char *filename, int xpos, int ypos) {
   Serial.println("===========================");
 
   // Use one of the following methods to initialise the decoder:
-  bool decoded = JpegDec.decodeSdFile(jpegFile);  // Pass the SD file handle to the decoder,
+  bool decoded = JpegDec.decodeSdFile(jpegFile); // Pass the SD file handle to the decoder,
   // bool decoded = JpegDec.decodeSdFile(filename);  // or pass the filename (String or character array)
 
-  if (decoded) {
+  if (decoded)
+  {
     // print information about the image to the serial port
     jpegInfo();
     // render the image onto the screen at given coordinates
     jpegRender(xpos, ypos);
-  } else {
+  }
+  else
+  {
     Serial.println("Jpeg file format not supported!");
   }
 }
-void jpegRender(int xpos, int ypos) {
+void jpegRender(int xpos, int ypos)
+{
 
   // jpegInfo(); // Print information from the JPEG file (could comment this line out)
 
@@ -458,8 +524,9 @@ void jpegRender(int xpos, int ypos) {
   max_y += ypos;
 
   // Fetch data from the file, decode and display
-  while (JpegDec.read()) {  // While there is more data in the file
-    pImg = JpegDec.pImage;  // Decode a MCU (Minimum Coding Unit, typically a 8x8 or 16x16 pixel block)
+  while (JpegDec.read())
+  {                        // While there is more data in the file
+    pImg = JpegDec.pImage; // Decode a MCU (Minimum Coding Unit, typically a 8x8 or 16x16 pixel block)
 
     // Calculate coordinates of top left corner of current MCU
     int mcu_x = JpegDec.MCUx * mcu_w + xpos;
@@ -478,13 +545,16 @@ void jpegRender(int xpos, int ypos) {
       win_h = min_h;
 
     // copy pixels into a contiguous block
-    if (win_w != mcu_w) {
+    if (win_w != mcu_w)
+    {
       uint16_t *cImg;
       int p = 0;
       cImg = pImg + win_w;
-      for (int h = 1; h < win_h; h++) {
+      for (int h = 1; h < win_h; h++)
+      {
         p += mcu_w;
-        for (int w = 0; w < win_w; w++) {
+        for (int w = 0; w < win_w; w++)
+        {
           *cImg = *(pImg + w + p);
           cImg++;
         }
@@ -496,12 +566,13 @@ void jpegRender(int xpos, int ypos) {
     if ((mcu_x + win_w) <= tft.width() && (mcu_y + win_h) <= tft.height())
       tft.pushImage(mcu_x, mcu_y, win_w, win_h, pImg);
     else if ((mcu_y + win_h) >= tft.height())
-      JpegDec.abort();  // Image has run off bottom of screen so abort decoding
+      JpegDec.abort(); // Image has run off bottom of screen so abort decoding
   }
 
   tft.setSwapBytes(swapBytes);
 }
-void jpegInfo() {
+void jpegInfo()
+{
   Serial.println("JPEG image info");
   Serial.println("===============");
   Serial.print("Width      :");
@@ -523,7 +594,8 @@ void jpegInfo() {
   Serial.println("===============");
   Serial.println("");
 }
-void setup() {
+void setup()
+{
   // pinMode(I2S_EN, OUTPUT);
   // pinMode(I2S_EN, 0);
   // pinMode(I2S_DO,OUTPUT);
@@ -532,27 +604,36 @@ void setup() {
   // pinMode(I2S_BAK,0);
   // pinMode(I2S_WS,OUTPUT);
   // pinMode(I2S_WS,0);
-  //disableCore0WDT();//应对供电不足的问题
-  esp_sleep_enable_timer_wakeup(60000000); //60 seconds
+  // disableCore0WDT();//应对供电不足的问题
+   esp_sleep_enable_timer_wakeup(60000000); //60 seconds
   // 上面为轻度休眠，正在调试，可以注释掉
   Serial.begin(115200);
   ledcSetup(0, 500, 8);
   pinMode(Charge, INPUT);
-  sd_en();                       // SD使能
-  Wire.begin(IIC_SDA, IIC_SCL);  //IIC初始化
+  sd_en();                      // SD使能
+  Wire.begin(IIC_SDA, IIC_SCL); // IIC初始化
+  // I2S初始化
+  pinMode(I2S_EN, OUTPUT);
+  digitalWrite(I2S_EN, 0);
+  audio.setPinout(I2S_BAK, I2S_WS, I2S_DO);
+  audio.setVolume(16); // 0...21
   // LCD初始化
   tft.begin();
-  analogWrite(BLPin, 128);
+   analogWrite(BLPin, 128);
+  //digitalWrite(BLPin,1);
+  //亮度控制
   tft.setRotation(1);
   tft.fillScreen(c_BL);
-  WiFi.begin(ssidhome, passhome);  // 连接网络
+  WiFi.begin(ssidhome, passhome); // 连接网络
   int i = 0;
   Serial.print("Connecting to ");
   Serial.print(ssidhome);
-  while (WiFi.status() != WL_CONNECTED) {  // 等待连接
+  while (WiFi.status() != WL_CONNECTED)
+  { // 等待连接
     delay(500);
     Serial.print('.');
-    if (i > 40) {
+    if (i > 40)
+    {
       Serial.println("联网失败，结束联网");
       break;
     }
@@ -563,8 +644,9 @@ void setup() {
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());
   // 时间更新
-  Rtc.Begin();  // DS1307时间读写
-  if (!Rtc.GetIsRunning()) {
+  Rtc.Begin(); // DS1307时间读写
+  if (!Rtc.GetIsRunning())
+  {
     Serial.println("RTC was not actively running, starting now");
     Rtc.SetIsRunning(true);
   }
@@ -582,9 +664,10 @@ void setup() {
     Serial.println("[ERROR] Cannot start periodic mode");
   drawHomePage();
   uptime.attach(600, update_flag_change);
-  //upTouch.attach_ms(50, GetTouch);
-  WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
-  if (WiFi.status() != WL_CONNECTED) {
+  // upTouch.attach_ms(50, GetTouch);
+  WiFi.disconnect(1); // 时间更新完成后，断开连接，保持低功耗；
+  if (WiFi.status() != WL_CONNECTED)
+  {
     Serial.println("无线终端和接入点的连接已中断");
   }
   else
@@ -593,15 +676,18 @@ void setup() {
   }
 }
 
-void loop() {
+void loop()
+{
   drawTime();
-  //测试轻度睡眠模式
-  //Serial.println("准备进入轻度休眠");
-  // esp_sleep_enable_timer_wakeup(60000000); //60 seconds
-  //esp_light_sleep_start();
-  //Serial.println("如果你看到了，说明没能进入轻度休眠模式");
-  // 以上为轻度休眠测试
- if (update_flag)
+  // 测试轻度睡眠模式
+  // Serial.println("准备进入轻度休眠");
+  //  esp_sleep_enable_timer_wakeup(60000000); //60 seconds
+  //digitalWrite(BLPin,1);
+  gpio_hold_en(GPIO_NUM_21);
+  esp_light_sleep_start();
+  Serial.println("如果你看到了，说明没能进入轻度休眠模式");
+  //  以上为轻度休眠测试
+  if (update_flag)
   {
     int i = 0;
     WiFi.begin(ssidhome, passhome); // 连接网络
@@ -612,7 +698,8 @@ void loop() {
       i++;
       delay(500);
       Serial.print('.');
-      if (i > 40) {
+      if (i > 40)
+      {
         Serial.println("联网失败，结束联网");
         break;
       }
@@ -624,8 +711,9 @@ void loop() {
     Serial.println(WiFi.localIP());
     drawHomePage();
     update_flag = 0;
-    WiFi.disconnect(1);                     //时间更新完成后，断开连接，保持低功耗；
-    if (WiFi.status() != WL_CONNECTED) {
+    WiFi.disconnect(1); // 时间更新完成后，断开连接，保持低功耗；
+    if (WiFi.status() != WL_CONNECTED)
+    {
       Serial.println("无线终端和接入点的连接已中断");
     }
     else
